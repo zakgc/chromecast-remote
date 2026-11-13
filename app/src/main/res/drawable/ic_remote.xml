@@ -1,5 +1,15 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
-    <path android:fillColor="#111C1B" android:pathData="M0,0h48v48h-48z" />
-    <path android:fillColor="#B7E7D2" android:pathData="M18,5h12a5,5 0,0 1,5 5v28a5,5 0,0 1,-5 5h-12a5,5 0,0 1,-5 -5v-28a5,5 0,0 1,5 -5" />
-    <path android:fillColor="#111C1B" android:pathData="M21,14h6v5h5v6h-5v5h-6v-5h-5v-6h5zM21,34h6v4h-6z" />
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- The launcher reveals the middle 72dp; keep the enlarged remote inside its safe zone. -->
+    <group android:scaleX="0.72" android:scaleY="0.72" android:translateX="18" android:translateY="18">
+        <path android:fillColor="#79A9F5"
+            android:pathData="M47.75,9H52.25A16.25,16.25 0,0 1,68.5 25.25V74.75A16.25,16.25 0,0 1,52.25 91H47.75A16.25,16.25 0,0 1,31.5 74.75V25.25A16.25,16.25 0,0 1,47.75 9Z" />
+        <path android:fillColor="#191C22"
+            android:pathData="M50,18.95A14.75,14.75 0,1 1,50 48.45A14.75,14.75 0,1 1,50 18.95Z M42.5,55.6H57.5A3.6,3.6 0,0 1,57.5 62.8H42.5A3.6,3.6 0,0 1,42.5 55.6Z M42.5,68H57.5A3.6,3.6 0,0 1,57.5 75.2H42.5A3.6,3.6 0,0 1,42.5 68Z" />
+        <path android:fillColor="#79A9F5"
+            android:pathData="M50,30.05A3.65,3.65 0,1 1,50 37.35A3.65,3.65 0,1 1,50 30.05Z" />
+        <path android:fillColor="#F1F4FA"
+            android:pathData="M49.7,21.8Q50,21.4 50.3,21.8L53.1,25.8Q53.4,26.2 52.9,26.2H47.1Q46.6,26.2 46.9,25.8Z M38,33.4Q37.6,33.7 38,34L42,36.8Q42.4,37.1 42.4,36.6V30.8Q42.4,30.3 42,30.6Z M62,33.4Q62.4,33.7 62,34L58,36.8Q57.6,37.1 57.6,36.6V30.8Q57.6,30.3 58,30.6Z M49.7,45.6Q50,46 50.3,45.6L53.1,41.6Q53.4,41.2 52.9,41.2H47.1Q46.6,41.2 46.9,41.6Z" />
+    </group>
 </vector>

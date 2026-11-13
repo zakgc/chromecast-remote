@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <application android:theme="@style/AppTheme" android:label="Home Remote"
-        android:icon="@drawable/ic_remote" android:allowBackup="false" android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:supportsRtl="true" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
