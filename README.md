@@ -4,18 +4,17 @@ A small native Kotlin Android remote for two Chromecasts with Google TV. Built f
 
 **The owner reports that 0.2.1 works well**, following the SmartTube launch correction, automatic live keyboard, and editable/reorderable favourites. Baseline navigation, reopening, and Wi-Fi recovery were previously confirmed on both TVs from both phones. The owner declined a TV helper, so this app remains phone-only and cannot browse the TV's installed-app inventory. See [feature notes](docs/features-0.2.1.md). Voice, power, input switching, and a playback timeline remain outside this build.
 
-Build **0.2.3** removes the experimental Apps button and its checklist entry after the owner reported that it did not work. Back and Home retain their original two-button row. Existing pairings, settings, and favourite buttons are preserved.
+Build **0.3.3** applies the approved remote preview: a navigation circle up to 340dp across, a square Settings button matching the device selector height, continuously scrolling single-line device names when they overflow, and a two-arrow refresh symbol. The circle adapts to narrower or shorter phones while keeping the bottom controls visible. The existing Back, Home and Play / pause icons are unchanged. Existing pairings, preferences and favourites are preserved.
 
-The [exported S25 report](docs/reports/2026-11-13-s25.md) confirms Guest Room TV discovery, pairing, navigation, isolated switching, reconnection, and play/pause; the owner subsequently confirmed the same functional results on Maria TV. The report records a 68 ms activity-layout estimate and a 587 ms connection sample for Guest Room TV only. Volume does not work in either TV setup even with the official Chromecast physical remotes, per the owner, so leave the app's volume/mute group disabled.
+The [exported S25 report](docs/reports/2026-11-13-s25.md) confirms Guest Room TV discovery, pairing, navigation, isolated switching, reconnection, and play/pause; the owner subsequently confirmed the same functional results on Maria TV. The report records a 68 ms activity-layout estimate and a 587 ms connection sample for Guest Room TV only. Volume does not work in either TV setup even with the official Chromecast physical remotes, per the owner, so volume and mute are omitted from the app.
 
 ## Install and try
 
-1. Use [the updated test APK](outputs/HomeRemote-0.2.3-test.apk), or build using the instructions below. Install over the current app to retain pairings.
+1. Use [the updated test APK](outputs/HomeRemote-0.3.3-test.apk), or build using the instructions below. Install over the current app to retain pairings.
 2. Copy the APK to each phone, open it, and allow installation from the app used to open it when Android asks. Samsung Auto Blocker or a managed-device policy may restrict installation; follow the phone's instructions. This APK is debug-signed for personal testing.
-3. Wake the Chromecast and connect the phone to the same home Wi-Fi. Open **Home Remote → Add a TV**. The app searches for Android TV Remote Service v2. You can also enter the TV's IP address from its network settings.
+3. Wake the Chromecast and connect the phone to the same home Wi-Fi. Open **Home Remote → Add a TV**, or **Settings → Manage TVs** for an existing setup. The app searches for Android TV Remote Service v2. You can also enter the TV's IP address from its network settings.
 4. Name the device and pair using the six-character code on the TV, including letters A–F. Add the second Chromecast. Repeat pairing independently on the other phone.
-5. Use the main remote. **Test this setup** records pass/fail results on each phone and offers volume/mute/playback test buttons. Only enable those controls on the main remote after observing that they work.
-6. Use **Share test report** to export results through an app you choose. Reports include local IP addresses and phone details but no private keys, codes, or certificate pins.
+5. Use the main remote for navigation, playback, keyboard input and favourite apps. Settings contains TV management, vibration and automatic-keyboard preferences, and connection help.
 
 ## Build on Windows
 
@@ -32,7 +31,7 @@ The setup helper generates the standard Gradle wrapper. With an existing Android
 Build outputs:
 
 - APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Convenient copy and checksum: `outputs/HomeRemote-0.2.3-test.apk` and `.apk.sha256`
+- Convenient copy and checksum: `outputs/HomeRemote-0.3.3-test.apk` and `.apk.sha256`
 - Unit test report: `app/build/reports/tests/testDebugUnitTest/index.html`
 - Android lint report: `app/build/reports/lint-results-debug.html`
 
@@ -41,11 +40,11 @@ Build outputs:
 - Saved selection appears before a network connection. Commands are disabled until the TV completes its remote handshake.
 - Each selection invalidates the previous connection, closes its socket, and clears pending commands. Every command captures its original connection and expires after 250 ms. It is never transferred to another connection.
 - Foreground reconnects back off from 2 to 30 seconds. Leaving the app cancels pairing, discovery, retries, and the remote socket; there is no background service.
-- Discovery is limited to 20-second searches. Saved mDNS service names refresh changed IP addresses, and the TV's pinned certificate authenticates subsequent connections. Use **Devices & setup → Search again** after a network change if necessary.
+- Discovery is limited to 20-second searches. Saved mDNS service names refresh changed IP addresses, and the TV's pinned certificate authenticates subsequent connections. Use **Settings → Manage TVs → Search again** after a network change if necessary.
 - Non-exportable RSA pairing keys are generated in Android Keystore. The pairing code authenticates the self-signed TV certificate; subsequent remote TLS connections require that exact certificate. Backup is disabled. Removing a TV deletes its local keys, pin, preferences, and test record. It does not revoke the old certificate at the TV; use TV settings for that.
-- Android network permissions cover local TLS, network state, and Wi-Fi multicast discovery. No location, microphone, contacts, storage, or notification permission is requested. The app targets API 35; recheck local-network permission requirements before increasing the target SDK.
-- Native scrolling layouts, text scaling, large buttons, explicit control labels, selection announcements, and status updates support accessibility. Actual large-text/TalkBack verification is still required.
-- Optional control verification is stored per TV **on each phone**. HDMI-CEC, soundbar settings, and infrared-only volume configurations may prevent volume control. A sent key does not prove the TV acted on it.
+- Android network permissions cover local TLS, network state, and Wi-Fi multicast discovery. The normal vibration permission supports button feedback. No location, microphone, contacts, storage, or notification permission is requested. The app targets API 35; recheck local-network permission requirements before increasing the target SDK.
+- The everyday remote fits regular and compact phone viewports. Additional favourites page in place from the favourites heading. Larger system text uses a scrolling fallback. Native buttons expose the circular pad's five actions to accessibility, with hold cancellation on release, segment crossing and TV switching. Actual phone/TalkBack verification is still required.
+- Legacy compatibility records remain stored per TV on each phone. The setup-testing screen has been removed; navigation, playback and app shortcuts keep their existing connection checks.
 
 ## Protocol dependency
 
@@ -57,7 +56,7 @@ See [the hardware test checklist](docs/device-testing.md) for the compatibility 
 
 The owner confirmed that 0.1.1 accepted the Guest Room TV's pairing code, but never showed Connected. The app incorrectly waited for an optional power-status message despite not requesting the power feature. Its own 12-second setup timer then closed the socket. Version 0.1.2 uses the TV's SetActive acknowledgement to complete remote setup, before allowing key commands. Power messages no longer control readiness. The two new protocol regression tests failed against 0.1.1 before this correction.
 
-The latest APK includes this correction. Install it over the current app and tap **Reconnect** if needed. Existing successful pairings are retained. Error messages distinguish local setup timeouts, failed setup, and an interrupted active connection. The version is displayed in the app header and exported test report.
+The latest APK includes this correction. Install it over the current app and tap **Reconnect** if needed. Existing successful pairings are retained. Error messages distinguish local setup timeouts, failed setup, and an interrupted active connection.
 
 ## Pairing correction in 0.1.1
 
@@ -67,9 +66,9 @@ If upgrading from the original 0.1 build, install the latest APK over the existi
 
 ## Validation completed
 
-- `testDebugUnitTest`: 65 checks passed, covering the existing remote and pairing policy, automatic live editing, delayed echoes, field/session changes, search submission ordering, repeat cancellation, editable favourites and migration, and app-link messages. Android-specific checks run on simulated API 26 and API 35.
+- `testDebugUnitTest`: 78 checks cover the existing protocol and storage behavior, playback visibility, TV selection, settings persistence, vibration requests and preferences, in-place favourite paging, compact/regular layout fit, large-text scrolling, centred direction glyphs, circular-pad hold routing popup editing flows and spacing, first-measure screen fit, square settings alignment, centred settings glyphs and overflow-name animation/lifecycle behavior. Android-specific checks run on simulated API 26 and API 35; design checks render with API 35 native graphics. Physical vibration still needs to be checked on the phone.
 - `lintDebug`: no issues found, with warnings treated as errors.
-- `assembleDebug`: successful; the 0.2.3 test APK is 928,690 bytes (about 0.89 MiB).
+- `assembleDebug`: produces the 0.3.3 test APK using the existing signing key and a higher version code for updating the installed app.
 - Android APK signature verification: each update uses the same signing certificate and a higher version code for installation over the previous test build.
 
-The app/storage tests exercise first use, disabled commands before connection, restoring selection, switching, per-device optional controls, persistence, removal, and untested-by-default reports. Protocol tests exercise framing, malformed input, handshake/capability negotiation, pings, key encoding, pairing-code hashing, and stale-command rejection. Key-policy tests verify the production key-generation settings and separate legacy/current aliases; they do not emulate hardware Keystore or a native Android TLS handshake. The new policy checks failed against the original configuration before the correction. Retesting encrypted pairing on the owner's phone/TV remains required.
+The app/storage tests exercise first use, disabled commands before connection, restoring selection, switching, per-device optional controls, persistence, removal, preserved compatibility records, and absence of the removed setup-testing screen. Protocol tests exercise framing, malformed input, handshake/capability negotiation, pings, key encoding, pairing-code hashing, and stale-command rejection. Key-policy tests verify the production key-generation settings and separate legacy/current aliases; they do not emulate hardware Keystore or a native Android TLS handshake. The new policy checks failed against the original configuration before the correction. Retesting encrypted pairing on the owner's phone/TV remains required.

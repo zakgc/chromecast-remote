@@ -2,7 +2,6 @@ package uk.co.home.chromecastremote
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -14,45 +13,44 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
 import android.text.InputFilter
 import android.text.InputType
+import android.text.TextUtils
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowInsets
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import uk.co.home.chromecastremote.protocol.Identity
 import uk.co.home.chromecastremote.protocol.PairingSession
 import uk.co.home.chromecastremote.protocol.RemoteProtocol
-import java.io.File
 import java.util.concurrent.Executors
 import java.util.UUID
 
 class MainActivity : Activity() {
-    private val ink = Color.rgb(237, 244, 239)
-    private val muted = Color.rgb(173, 193, 186)
-    private val surface = Color.rgb(32, 48, 45)
-    private val accent = Color.rgb(183, 231, 210)
+    private val ink = RemoteColors.ink
+    private val muted = RemoteColors.muted
+    private val surface = RemoteColors.surface
+    private val accent = RemoteColors.blue
     private lateinit var store: DeviceStore
     private lateinit var controller: RemoteController
     private lateinit var discovery: Discovery
     private lateinit var connectivity: ConnectivityManager
-    private lateinit var body: LinearLayout
+    private lateinit var body: RemoteBody
     private lateinit var scroll: ScrollView
     private var screen = "remote"
     private var statusView: TextView? = null
-    private var detailView: TextView? = null
-    private val tabs = mutableListOf<Pair<String, Button>>()
+    private val tvStatuses = mutableListOf<Pair<String, TextView>>()
     private val controls = mutableListOf<Pair<Button, Int>>()
     private val appButtons = mutableListOf<Button>()
+    private var favouritePage = 0
     private lateinit var repeatPress: HoldToRepeat
+    private lateinit var vibration: ButtonVibration
     private var keyboardDialog: TvKeyboardDialog? = null
     private var suppressedKeyboardScope: String? = null
     private var editingFavourites = false
@@ -66,7 +64,6 @@ class MainActivity : Activity() {
     private var pairingToken = 0
     private var visible = false
     private var registered = false
-    private var firstLayoutMs = 0L
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) = updateNetwork()
         override fun onLost(network: Network) = updateNetwork()
@@ -74,14 +71,14 @@ class MainActivity : Activity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val start = SystemClock.elapsedRealtime()
         store = DeviceStore(this)
+        vibration = ButtonVibration(this) { store.haptics }
         connectivity = getSystemService(ConnectivityManager::class.java)
         controller = RemoteController { state -> updateState(state) }
         repeatPress = HoldToRepeat { controller.state.takeIf { it.connected }?.sessionId }
         discovery = Discovery(this, ::deviceFound) { message -> discoveryMessage = message; discoveryStatus?.text = message }
-        scroll = ScrollView(this).apply { isFillViewport = true; setBackgroundColor(Color.rgb(17, 28, 27)); clipToPadding = false }
-        body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(16), dp(22), dp(24)) }
+        scroll = RemoteViewport(this).apply { isFillViewport = true; setBackgroundColor(RemoteColors.background); clipToPadding = false }
+        body = RemoteBody(this).apply { setPadding(dp(20), dp(12), dp(20), dp(16)) }
         scroll.addView(body)
         scroll.setOnApplyWindowInsetsListener { view, insets ->
             if (Build.VERSION.SDK_INT >= 30) {
@@ -95,7 +92,6 @@ class MainActivity : Activity() {
         }
         setContentView(scroll)
         showRemote()
-        scroll.post { firstLayoutMs = SystemClock.elapsedRealtime() - start }
     }
     override fun onStart() {
         super.onStart(); visible = true
@@ -120,97 +116,142 @@ class MainActivity : Activity() {
     } == true }
     private fun selected() = store.devices().firstOrNull { it.id == store.selected } ?: store.devices().firstOrNull()
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    private fun background(color: Int, radius: Int = 18) = GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
-    private fun buttonBackground(color: Int) = RippleDrawable(ColorStateList.valueOf(Color.argb(70, 120, 160, 145)), background(color), background(Color.WHITE))
+    private fun background(color: Int, radius: Int = 14) = GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat(); setStroke(dp(1), RemoteColors.edge) }
+    private fun buttonBackground(color: Int) = RippleDrawable(ColorStateList.valueOf(Color.argb(65, 121, 169, 245)), background(color), background(Color.WHITE))
     private fun column() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     private fun row() = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     private fun label(value: String, size: Float = 16f, color: Int = ink) = TextView(this).apply {
         text = value; textSize = size; setTextColor(color); setPadding(0, dp(8), 0, dp(8))
     }
-    private fun button(value: String, primary: Boolean = false, action: () -> Unit): Button = Button(this).apply {
+    private fun button(value: String, primary: Boolean = false, direction: String? = null, iconSize: Int = 30, action: () -> Unit): Button = (if (direction == null) Button(this) else RemoteIconButton(this, direction, iconSize)).apply {
         text = value; textSize = 16f; isAllCaps = false
-        setTextColor(if (primary) Color.rgb(17, 28, 27) else ink)
+        setTextColor(if (primary) RemoteColors.background else ink)
         background = buttonBackground(if (primary) accent else surface)
-        minHeight = dp(60); minimumHeight = dp(60)
+        minHeight = dp(52); minimumHeight = dp(52)
         setPadding(dp(12), dp(12), dp(12), dp(12))
-        setOnClickListener { action() }
+        setOnClickListener { vibration.tap(); action() }
     }
     private fun LinearLayout.add(view: View, height: Int = -2) {
         addView(view, LinearLayout.LayoutParams(-1, if (height > 0) dp(height) else height).apply { bottomMargin = dp(10) })
     }
     private fun LinearLayout.weighted(view: View) { addView(view, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) }) }
     private fun reset(title: String, subtitle: String) {
+        clearScreen()
+        body.add(label(title, 28f).apply { typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
+        if (subtitle.isNotBlank()) body.add(label(subtitle, 15f, muted))
+    }
+    private fun clearScreen() {
         repeatPress.cancel()
-        body.removeAllViews(); tabs.clear(); controls.clear(); appButtons.clear(); statusView = null; detailView = null; discoveryStatus = null; foundList = null
-        body.add(label("HOME REMOTE  /  ${BuildConfig.VERSION_NAME}", 12f, accent))
-        body.add(label(title, 32f).apply { typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
-        body.add(label(subtitle, 15f, muted))
-        scroll.smoothScrollTo(0, 0)
+        body.pad = null
+        body.removeAllViews(); tvStatuses.clear(); controls.clear(); appButtons.clear(); statusView = null; discoveryStatus = null; foundList = null
+        scroll.scrollTo(0, 0)
     }
     private fun showRemote() {
         screen = "remote"
-        reset("A little closer.", "Your Google TV, within reach.")
-        val devices = store.devices()
-        val deviceRow = row()
-        devices.forEach { device ->
-            val tab = button(device.name) { store.selected = device.id; controller.select(device); showRemote() }
-            tabs.add(device.id to tab); deviceRow.weighted(tab)
-        }
-        if (devices.size < 2) deviceRow.weighted(button(if (devices.isEmpty()) "+ Add a TV" else "+ Second TV") { showDevices() })
-        body.add(deviceRow)
-        statusView = label(controller.state.label, 18f, accent).also { it.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE; body.add(it) }
-        detailView = label("", 14f, muted).also { body.add(it) }
-        if (devices.isEmpty()) body.add(label("First, turn on your Chromecast. Connect this phone to the same Wi-Fi, then add your TV.", 17f))
-        val pad = column().apply { setPadding(dp(4), dp(8), dp(4), dp(8)) }
-        val keys = listOf(listOf(null, "↑" to 19, null), listOf("←" to 21, "OK" to 23, "→" to 22), listOf(null, "↓" to 20, null))
-        val descriptions = mapOf(19 to "Up", 20 to "Down", 21 to "Left", 22 to "Right", 23 to "Select")
-        keys.forEach { line ->
-            val r = row()
-            line.forEach { key ->
-                if (key == null) r.weighted(View(this).apply { minimumHeight = dp(68) })
-                else r.weighted(remoteButton(key.first, key.second, key.second == 23).apply {
-                    contentDescription = descriptions[key.second]; textSize = if (key.second == 23) 20f else 28f
-                    minHeight = dp(76)
-                })
-            }
-            pad.add(r)
-        }
-        body.add(pad)
-        body.add(row().apply { weighted(remoteButton("Back", 4)); weighted(remoteButton("Home", 3)) })
+        clearScreen()
         val device = selected()
-        if (device?.volumeVerified == true) body.add(row().apply {
-            weighted(remoteButton("Vol −", 25).apply { contentDescription = "Volume down" })
-            weighted(remoteButton("Mute", 164))
-            weighted(remoteButton("Vol +", 24).apply { contentDescription = "Volume up" })
+        val topBar = DeviceTopBar(this)
+        val selector = row().apply { background = background(surface); setPadding(dp(12), dp(4), dp(4), dp(4)) }
+        val selectorText = column()
+        selectorText.addView(LoopingDeviceName(this).apply {
+            text = device?.name ?: "Add a TV"; textSize = 20f; setTextColor(ink)
+            typeface = Typeface.DEFAULT_BOLD; setPadding(0, dp(4), 0, 0)
         })
-        if (device?.playbackVerified == true) body.add(remoteButton("Play / pause", 85))
-        body.add(button("Keyboard") { showKeyboard() }.apply { isEnabled = device?.paired == true })
+        val connection = row()
+        statusView = label("", 14f, muted).apply {
+            setPadding(0, 0, 0, 0); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            setSingleLine(); ellipsize = TextUtils.TruncateAt.END
+        }.also { connection.addView(it, LinearLayout.LayoutParams(0, -2, 1f)) }
+        selectorText.addView(connection)
+        selectorText.isClickable = true; selectorText.isFocusable = true
+        selectorText.contentDescription = "Choose TV, ${device?.name ?: "no TV saved"}"
+        selectorText.setOnClickListener { chooseTv() }
+        selector.addView(selectorText, LinearLayout.LayoutParams(0, -2, 1f))
+        selector.addView(iconButton("Reconnect", "reconnect") { repeatPress.cancel(); controller.select(selected()) })
+        selector.addView(iconButton("Choose TV", "down") { chooseTv() })
+        topBar.addView(selector, LinearLayout.LayoutParams(0, -2, 1f))
+        topBar.addView(iconButton("Settings", "settings") { showSettings() }.apply {
+            background = buttonBackground(surface)
+        }, LinearLayout.LayoutParams(dp(56), dp(56)).apply { leftMargin = dp(12) })
+        body.add(topBar)
+        val pages = device?.let { store.favourites(it.id).chunked(2) }.orEmpty()
+        favouritePage = favouritePage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+        val heading = row()
+        heading.addView(label("Favourite apps", 18f).apply { typeface = Typeface.DEFAULT_BOLD }, LinearLayout.LayoutParams(0, -2, 1f))
+        if (pages.size > 1) heading.addView(textAction("${favouritePage + 1}/${pages.size} ›") { favouritePage = (favouritePage + 1) % pages.size; showRemote() }.apply {
+            contentDescription = "More favourites, page ${favouritePage + 1} of ${pages.size}"; textSize = 14f
+        })
+        heading.addView(textAction("Edit") { if (device != null) chooseFavourites(device) else showDevices() })
+        body.addView(heading)
         if (device != null) {
-            body.add(label("Favourite apps", 21f))
-            store.favourites(device.id).chunked(2).forEach { pair ->
-                val favouriteRow = row()
-                pair.forEach { app ->
-                    val launch = button(app.name) {
-                        repeatPress.cancel()
-                        if (controller.launchApp(app)) toast("Opening ${app.name} on ${device.name}…")
-                        else toast("Connect to a TV that supports app shortcuts first.")
-                    }
-                    appButtons.add(launch); favouriteRow.weighted(launch)
+            val favourites = row()
+            pages.getOrNull(favouritePage)?.forEach { app ->
+                val launch = button(app.name) {
+                    repeatPress.cancel()
+                    if (controller.launchApp(app)) toast("Opening ${app.name} on ${device.name}…")
+                    else toast("Connect to a TV that supports app shortcuts first.")
                 }
-                body.add(favouriteRow)
+                appButtons.add(launch)
+                favourites.addView(launch, LinearLayout.LayoutParams(0, -2, 1f).apply { if (favourites.childCount > 0) leftMargin = dp(10) })
             }
-            body.add(button("Manage favourite apps") { chooseFavourites(device) })
+            if (pages.isEmpty()) favourites.addView(button("Add favourite apps") { chooseFavourites(device) }, LinearLayout.LayoutParams(-1, -2))
+            body.add(favourites)
+        } else body.add(label("Add your TV to save app shortcuts.", 14f, muted))
+        body.add(button("Keyboard") { showKeyboard() }.apply {
+            setCompoundDrawablesRelative(icon("keyboard"), null, icon("right", 18), null)
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            compoundDrawablePadding = dp(16); isEnabled = device?.paired == true
+        })
+        if (device == null) body.add(button("Add a TV") { showDevices() })
+        body.addView(View(this), LinearLayout.LayoutParams(-1, dp(20), 1f))
+        val directions = mapOf(19 to ("Up" to "up"), 20 to ("Down" to "down"), 21 to ("Left" to "left"), 22 to ("Right" to "right"), 23 to ("Select" to ""))
+        val keys = directions.mapValues { (key, value) ->
+            remoteButton(if (key == 23) "OK" else "", key, key == 23, value.second.takeIf { key != 23 }).apply {
+                contentDescription = value.first; setPadding(0, 0, 0, 0); minWidth = 0; minimumWidth = 0
+                textSize = 26f; typeface = Typeface.DEFAULT_BOLD
+                if (key == 23) background = RippleDrawable(ColorStateList.valueOf(Color.argb(60, 0, 0, 0)), GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(accent) }, null)
+                else { background = clearRipple() }
+            }
         }
-        body.add(button("Reconnect") { controller.select(selected()) })
-        body.add(button("Devices & setup") { showDevices() })
-        body.add(button("Test this setup") { showTests() })
-        body.add(label("Local Wi-Fi · No account · No cloud", 13f, muted))
+        val pad = CircularRemotePad(this, keys)
+        body.pad = pad
+        body.addView(pad, LinearLayout.LayoutParams(dp(340), dp(340)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(18) })
+        val navigation = row()
+        listOf(Triple("Back", 4, "back"), Triple("Home", 3, "home"), Triple("Play / pause", 85, "play"))
+            .forEach { (title, key, glyph) ->
+                navigation.addView(remoteButton(title, key).apply {
+                    setCompoundDrawables(null, icon(glyph, 24), null, null); compoundDrawablePadding = dp(6)
+                    setPadding(dp(6), dp(12), dp(6), dp(12))
+                    textSize = 14f; minWidth = 0; minimumWidth = 0; minHeight = dp(80)
+                }, LinearLayout.LayoutParams(0, -2, 1f).apply { if (navigation.childCount > 0) leftMargin = dp(10) })
+            }
+        body.addView(navigation)
         updateState(controller.state)
     }
-    private fun remoteButton(title: String, key: Int, primary: Boolean = false): Button {
-        val view = button(title, primary) {
+    private fun icon(kind: String, size: Int = 24) = RemoteIcon(kind).apply { setBounds(0, 0, dp(size), dp(size)) }
+    private fun iconButton(description: String, glyph: String, action: () -> Unit) = button("", direction = glyph, iconSize = 24, action = action).apply {
+        contentDescription = description; background = clearRipple()
+        minWidth = dp(48); minimumWidth = dp(48); minHeight = dp(48); minimumHeight = dp(48)
+        setPadding(dp(12), dp(12), dp(12), dp(12))
+        layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+    }
+    private fun textAction(title: String, action: () -> Unit) = button(title, action = action).apply {
+        background = null; setTextColor(accent); minHeight = dp(48); minimumHeight = dp(48)
+        setPadding(0, dp(8), dp(8), dp(8)); minWidth = dp(48); minimumWidth = dp(48); gravity = Gravity.CENTER_VERTICAL
+    }
+    private fun clearRipple() = RippleDrawable(ColorStateList.valueOf(Color.argb(65, 121, 169, 245)), null, background(Color.WHITE, 48))
+    private fun chooseTv() {
+        repeatPress.cancel()
+        val devices = store.devices()
+        if (devices.isEmpty()) { showDevices(); return }
+        AlertDialog.Builder(this).setTitle("Choose TV")
+            .setSingleChoiceItems(devices.map { it.name }.toTypedArray(), devices.indexOfFirst { it.id == selected()?.id }) { dialog, index ->
+                store.selected = devices[index].id; favouritePage = 0; controller.select(devices[index]); dialog.dismiss(); showRemote()
+            }.setNeutralButton("Manage TVs") { _, _ -> showDevices() }.setNegativeButton("Cancel", null).show()
+    }
+    private fun remoteButton(title: String, key: Int, primary: Boolean = false, direction: String? = null): Button {
+        val view = button(title, primary, direction) {
             if (controller.state.connected) {
-                if (store.haptics) body.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 controller.send(key)
             }
         }
@@ -224,22 +265,96 @@ class MainActivity : Activity() {
         if (state.textTarget == null) suppressedKeyboardScope = null
         val scope = keyboardScope(state)
         if (visible && screen == "remote" && !editingFavourites && store.automaticKeyboard && keyboardDialog == null && scope != null && scope != suppressedKeyboardScope) showKeyboard()
-        statusView?.text = state.label
-        detailView?.text = state.details
+        statusView?.text = if (screen == "remote") "● ${if (state.connected) "Connected" else if (selected()?.paired == false) "Pairing needed" else state.label}" else state.label
+        if (screen == "remote") statusView?.setTextColor(if (state.connected) accent else muted)
+        statusView?.contentDescription = listOf(state.label, state.details).filter { it.isNotBlank() }.joinToString(". ")
         controls.forEach { (button, _) -> button.isEnabled = state.connected; button.alpha = if (state.connected) 1f else 0.35f }
         appButtons.forEach { button ->
             button.isEnabled = state.connected && state.features and RemoteProtocol.APP_LINKS != 0
             button.alpha = if (button.isEnabled) 1f else 0.35f
         }
-        tabs.forEach { (id, button) ->
-            val active = id == selected()?.id
+        tvStatuses.forEach { (id, status) ->
             val device = store.devices().firstOrNull { it.id == id }
-            button.text = getString(R.string.device_tab, device?.name.orEmpty(), if (active) state.label else if (device?.paired == true) "Tap to switch" else "Needs pairing")
-            button.setTextColor(if (active) Color.rgb(17, 28, 27) else ink)
-            button.background = buttonBackground(if (active) accent else surface)
-            button.isSelected = active
-            button.contentDescription = "${device?.name}, ${if (active) "selected, ${state.label}" else "tap to switch"}"
+            val connected = state.connected && state.deviceId == id
+            status.text = if (connected) "● Connected" else if (device?.paired == true) "Pairing saved" else "Not paired"
+            status.setTextColor(if (connected) accent else muted)
         }
+    }
+    private fun section(title: String) {
+        body.addView(label(title, 18f).apply {
+            typeface = Typeface.DEFAULT_BOLD; setPadding(0, dp(12), 0, dp(6))
+            accessibilityHeadingCompat()
+        })
+    }
+    private fun View.accessibilityHeadingCompat() { if (Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true }
+    private fun group() = column().apply { background = background(surface); setPadding(dp(14), 0, dp(14), 0) }
+    private fun LinearLayout.groupRow(view: View) {
+        if (childCount > 0) addView(View(this@MainActivity).apply { setBackgroundColor(RemoteColors.edge) }, LinearLayout.LayoutParams(-1, dp(1)))
+        addView(view, LinearLayout.LayoutParams(-1, -2))
+    }
+    private fun settingsLink(title: String, action: () -> Unit) = button(title, action = action).apply {
+        background = clearRipple(); gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(14), 0, dp(14))
+        setCompoundDrawablesRelative(null, null, icon("right", 18), null)
+    }
+    private fun preference(title: String, helper: String, enabled: Boolean, changed: (Boolean) -> Unit): View {
+        val item = row().apply { setPadding(0, dp(10), 0, dp(10)); minimumHeight = dp(68) }
+        val labels = column().apply {
+            addView(label(title, 16f).apply { setPadding(0, 0, dp(8), dp(3)); typeface = Typeface.DEFAULT_BOLD })
+            addView(label(helper, 14f, muted).apply { setPadding(0, 0, dp(8), 0) })
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
+        item.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
+        item.addView(Switch(this).apply {
+            contentDescription = "$title. $helper"; minHeight = dp(48); minimumWidth = dp(48)
+            isChecked = enabled
+            trackDrawable = GradientDrawable().apply { setSize(dp(44), dp(26)); cornerRadius = dp(13).toFloat(); setColor(accent) }
+            thumbDrawable = GradientDrawable().apply { shape = GradientDrawable.OVAL; setSize(dp(22), dp(22)); setColor(ink) }
+            splitTrack = false
+            thumbTintList = ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(ink, muted))
+            trackTintList = ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(accent, RemoteColors.edge))
+            setOnCheckedChangeListener { _, checked -> changed(checked) }
+        })
+        item.setOnClickListener { (item.getChildAt(1) as Switch).toggle() }
+        return item
+    }
+    private fun showSettings() {
+        screen = "settings"
+        clearScreen()
+        body.addView(label("Settings", 28f).apply { typeface = Typeface.DEFAULT_BOLD; accessibilityHeadingCompat() })
+        section("Your TVs")
+        val televisions = group()
+        store.devices().forEach { device ->
+            val item = row().apply { minimumHeight = dp(64) }
+            val text = column()
+            text.addView(label(device.name, 17f).apply { typeface = Typeface.DEFAULT_BOLD; setPadding(0, dp(12), 0, dp(2)) })
+            val status = label("", 14f, muted).apply { setPadding(0, 0, 0, dp(12)); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
+            tvStatuses.add(device.id to status); text.addView(status)
+            item.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
+            televisions.groupRow(item)
+        }
+        if (store.devices().isEmpty()) televisions.groupRow(label("No TVs saved yet", 16f, muted))
+        body.addView(televisions)
+        body.addView(textAction("Manage TVs") { showDevices() })
+        section("Preferences")
+        body.addView(group().apply {
+            groupRow(preference("Button vibration", "Subtle feedback when you tap", store.haptics) { store.haptics = it; if (it) vibration.tap() })
+            groupRow(preference("Automatic keyboard", "Opens for text boxes on your TV", store.automaticKeyboard) {
+                store.automaticKeyboard = it; suppressedKeyboardScope = null; controller.keyboard(it)
+            })
+        })
+        section("Help")
+        body.addView(group().apply {
+            groupRow(settingsLink("Connection help") { help() })
+        })
+        body.addView(View(this), LinearLayout.LayoutParams(-1, dp(12), 1f))
+        body.addView(label("Local Wi-Fi · No account · No cloud", 13f, muted).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, dp(14)) })
+        body.addView(backButton("Back to remote") { showRemote() })
+        updateState(controller.state)
+    }
+    private fun backButton(title: String, action: () -> Unit) = button(title, action = action).apply {
+            background = buttonBackground(RemoteColors.navy)
+            (background as RippleDrawable).getDrawable(0)?.let { (it as? GradientDrawable)?.setStroke(dp(1), accent) }
+            setCompoundDrawablesRelative(icon("back"), null, null, null)
     }
     private fun keyboardScope(state: RemoteState): String? = state.textTarget?.takeIf { state.connected }?.let {
         "${state.deviceId}:${state.sessionId}:${it.fieldId}:${it.focusVersion}"
@@ -289,7 +404,7 @@ class MainActivity : Activity() {
     }
     private fun editFavourite(device: TvDevice, app: FavouriteApp?) {
         if (app == null && store.favourites(device.id).size >= 12) { toast("You can save up to 12 buttons per TV."); chooseFavourites(device); return }
-        val form = column().apply { setPadding(dp(20), dp(8), dp(20), 0) }
+        val form = column().apply { setPadding(dp(20), dp(16), dp(20), dp(12)) }
         val name = EditText(this).apply { hint = "Button name"; setSingleLine(); setText(app?.name.orEmpty()); filters = arrayOf(InputFilter.LengthFilter(40)) }
         val link = EditText(this).apply { hint = "App launch link"; setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI; setText(app?.link.orEmpty()); filters = arrayOf(InputFilter.LengthFilter(2048)) }
         form.add(name); form.add(link)
@@ -315,8 +430,8 @@ class MainActivity : Activity() {
     }
     private fun showDevices() {
         screen = "devices"
-        reset("Your televisions.", "Pair each phone separately with each Chromecast.")
-        body.add(button("← Remote") { showRemote() })
+        reset("Your televisions.", "")
+        body.add(backButton("Back to settings") { showSettings() })
         store.devices().forEach { device ->
             body.add(label(device.name, 24f))
             body.add(label("${device.host}:${device.port} · ${if (device.paired) "Pairing saved" else "Not paired"}", 14f, muted))
@@ -339,12 +454,6 @@ class MainActivity : Activity() {
         foundList = column().also { body.add(it) }
         renderFound()
         if (store.devices().size < 2) body.add(button("Add by IP address") { editDevice(null) })
-        body.add(CheckBox(this).apply { setText(R.string.haptic_setting); textSize = 16f; setTextColor(ink); minHeight = dp(56); isChecked = store.haptics; setOnCheckedChangeListener { _, enabled -> store.haptics = enabled } })
-        body.add(CheckBox(this).apply {
-            setText(R.string.automatic_keyboard); textSize = 16f; setTextColor(ink); minHeight = dp(56); isChecked = store.automaticKeyboard
-            setOnCheckedChangeListener { _, enabled -> store.automaticKeyboard = enabled; suppressedKeyboardScope = null; controller.keyboard(enabled) }
-        })
-        body.add(button("Connection help") { help() })
         body.add(label("This test build uses the unofficial Android TV remote protocol. A Google TV update may affect compatibility. Pairing keys stay protected on this phone. No analytics or sign-in.", 14f, muted))
     }
     private fun deviceFound(tv: FoundTv) {
@@ -371,7 +480,7 @@ class MainActivity : Activity() {
         }
     }
     private fun editDevice(device: TvDevice?, tv: FoundTv? = null) {
-        val form = column().apply { setPadding(dp(20), dp(8), dp(20), 0) }
+        val form = column().apply { setPadding(dp(20), dp(16), dp(20), dp(12)) }
         val name = EditText(this).apply { hint = "Name, e.g. Living Room"; setSingleLine(); setText(device?.name ?: tv?.name.orEmpty()); filters = arrayOf(InputFilter.LengthFilter(40)) }
         val host = EditText(this).apply { hint = "TV IP address"; setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI; setText(device?.host ?: tv?.host.orEmpty()) }
         form.add(name); form.add(host)
@@ -416,7 +525,7 @@ class MainActivity : Activity() {
     }
     private fun codeDialog(device: TvDevice, session: PairingSession, token: Int) {
         val input = EditText(this).apply { hint = "ABC123"; setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS; filters = arrayOf(InputFilter.LengthFilter(6), InputFilter.AllCaps()) }
-        val form = column().apply { setPadding(dp(24), dp(12), dp(24), 0); add(input) }
+        val form = column().apply { setPadding(dp(24), dp(16), dp(24), dp(12)); add(input) }
         val dialog = AlertDialog.Builder(this).setTitle("Enter the TV code")
             .setMessage("Enter the six characters shown on ${device.name}. This confirms the TV's identity.")
             .setView(form).setPositiveButton("Pair", null).setNegativeButton("Cancel") { _, _ -> cancelPairing(); controller.select(selected()) }.create()
@@ -448,57 +557,6 @@ class MainActivity : Activity() {
             .setPositiveButton("OK", null).setNeutralButton("Help") { _, _ -> help() }.show()
     }
     private fun cancelPairing() { pairingToken++; pairing?.close(); pairing = null; pairingDialog?.dismiss(); pairingDialog = null }
-    private fun showTests() {
-        val device = selected()
-        if (device == null) { showDevices(); return }
-        screen = "tests"
-        reset("Try it on your TV.", "${device.name} · ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
-        body.add(button("← Remote") { showRemote() })
-        statusView = label(controller.state.label, 18f, accent).also { body.add(it) }
-        detailView = label(controller.state.details, 14f, muted).also { body.add(it) }
-        body.add(label("Use the remote to test navigation first. Record what you actually see on the TV. Repeat on the other phone and Chromecast.", 16f))
-        body.add(label("Optional controls — test only", 21f))
-        body.add(label("Volume may depend on HDMI-CEC or the TV/soundbar setup. Infrared commands from the physical remote cannot be sent by this phone.", 14f, muted))
-        body.add(row().apply { weighted(remoteButton("Vol −", 25)); weighted(remoteButton("Mute", 164)); weighted(remoteButton("Vol +", 24)) })
-        body.add(remoteButton("Play / pause", 85))
-        body.add(CheckBox(this).apply {
-            setText(R.string.volume_verified); setTextColor(ink); textSize = 16f; minHeight = dp(56); isChecked = device.volumeVerified
-            setOnCheckedChangeListener { _, value -> store.devices().firstOrNull { it.id == device.id }?.let { store.save(it.copy(volumeVerified = value)) } }
-        })
-        body.add(CheckBox(this).apply {
-            setText(R.string.playback_verified); setTextColor(ink); textSize = 16f; minHeight = dp(56); isChecked = device.playbackVerified
-            setOnCheckedChangeListener { _, value -> store.devices().firstOrNull { it.id == device.id }?.let { store.save(it.copy(playbackVerified = value)) } }
-        })
-        body.add(label("Compatibility record", 24f))
-        val checks = listOf("Discovery", "Pairing", "Up / Down / Left / Right", "Select", "Back", "Home", "Switching: only selected TV responds", "Reopen: reconnect without pairing", "Sleep and wake", "TV restart", "Wi-Fi off and back on", "Volume and mute", "Play / pause", "Hold to repeat: stops on release / switch", "Keyboard: insert / delete / enter", "Favourite: Nuvio", "Favourite: SmartTube", "Large text and TalkBack")
-        checks.forEach { check ->
-            val result = store.testResults(device.id).optString(check, "Not tested")
-            body.add(button("$check\n$result") {
-                AlertDialog.Builder(this).setTitle(check).setItems(arrayOf("Passed", "Failed", "Not tested")) { _, index ->
-                    store.testResult(device.id, check, listOf("Passed", "Failed", "Not tested")[index]); showTests()
-                }.show()
-            })
-        }
-        body.add(label("First layout: ~${firstLayoutMs} ms (activity estimate)\nAPK: ${"%.2f".format(File(applicationInfo.sourceDir).length() / 1048576.0)} MB\nConnection: shown above. TV response time, installed size and idle battery need device measurements.", 14f, muted))
-        body.add(button("Share test report") { shareReport() })
-        updateState(controller.state)
-    }
-    private fun shareReport() {
-        val report = buildString {
-            appendLine("Home Remote compatibility report — ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
-            appendLine("App ${BuildConfig.VERSION_NAME} · First layout estimate ${firstLayoutMs} ms")
-            appendLine("Connection: ${controller.state.label} · ${controller.state.details}")
-            store.devices().forEach { device ->
-                appendLine("\n${device.name} · ${device.host}:${device.port} · paired=${device.paired}")
-                val results = store.testResults(device.id)
-                results.keys().forEach { key -> appendLine("$key: ${results.getString(key)}") }
-                appendLine("Volume verified=${device.volumeVerified}; playback verified=${device.playbackVerified}")
-                appendLine("Favourite apps: ${store.favourites(device.id).joinToString { it.name }}")
-            }
-            appendLine("\nUnrecorded checks remain untested. No pairing secrets included.")
-        }
-        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, report) }, "Share compatibility report"))
-    }
     private fun help() {
         AlertDialog.Builder(this).setTitle("Getting connected")
             .setMessage("1. Wake the Chromecast with its physical remote.\n\n2. Put this phone and the Chromecast on the same home Wi-Fi. Avoid guest Wi-Fi and turn off a VPN if it blocks local devices.\n\n3. Search again. If discovery fails, find the TV's IP address in Google TV Settings → Network & Internet and add it manually.\n\n4. If the TV was reset or its identity changed, pair it again.\n\n5. Check Android TV Remote Service is installed and up to date. You do not need to turn on debugging.\n\nPairings are separate on each phone. Removing a TV deletes its credentials here; revoke old phone access in the TV settings if needed.\n\nThis prototype uses an unofficial local protocol. Test both TVs before relying on it.")
@@ -507,5 +565,5 @@ class MainActivity : Activity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     @Deprecated("Uses the platform back callback for API 26 compatibility")
     @Suppress("DEPRECATION")
-    override fun onBackPressed() { if (screen != "remote") showRemote() else super.onBackPressed() }
+    override fun onBackPressed() { when (screen) { "remote" -> super.onBackPressed(); "settings" -> showRemote(); else -> showSettings() } }
 }

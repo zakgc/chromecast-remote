@@ -26,7 +26,7 @@ class TvKeyboardDialog(
     private val keepKeyboardEnabled: () -> Boolean = { true }, private val dismissed: () -> Unit
 ) {
     private val handler = Handler(Looper.getMainLooper())
-    private val status = TextView(activity).apply { textSize = 15f }
+    private val status = TextView(activity).apply { textSize = 15f; setPadding(0, 0, 0, (12 * resources.displayMetrics.density).toInt()) }
     private val input = EditText(activity).apply {
         hint = "Type on your TV"; contentDescription = "Keyboard for ${device.name}"
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS

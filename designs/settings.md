@@ -2,9 +2,11 @@
 
 [Settings screen](home-remote-settings.png)
 
-Visual concept generated with the built-in image generation tool, matching the v3 remote's dark grey, navy and blue palette, typography, surfaces and restrained icon use. One view shows saved TVs, device management, button vibration, automatic keyboard, connection help and setup testing. Back to remote is anchored at the bottom for thumb reach. No app branding or decorative row icons. Application code is unchanged.
+Visual concept generated with the built-in image generation tool, matching the v3 remote's dark grey, navy and blue palette, typography, surfaces and restrained icon use. Build 0.3.0 implements saved TVs, device management, button vibration, automatic keyboard, connection help and setup testing. Back to remote is anchored at the bottom for thumb reach. No app branding or decorative row icons.
 
-Device row chevrons lead to device-specific management; Manage TVs opens the existing device management and discovery workflow. Preferences use the existing haptics and automatic-keyboard settings. Connected is a sample live state; Pairing saved describes stored credentials without implying an active connection. Settings switches should save immediately. Size and touch-target intentions require validation during implementation.
+Following phone feedback in 0.3.1, TV rows display names and live/saved status only, with no chevrons or popup. Manage TVs opens the existing device management and discovery workflow; its Back to settings button matches the navy Back to remote action. Preferences save immediately. Button vibration requests a short pulse and previews it when switched on. Pairing saved describes stored credentials without implying an active connection. Popups share the app's rounded charcoal surfaces, blue-accented actions and bordered fields. The generation prompt below preserves the original concept; these revisions supersede its device-row chevrons.
+
+In 0.3.2, the setup-testing entry and screen are removed, leaving a Help section with Connection help. Popup actions have separate margins and forms have more space above and below their fields. Both Back to remote and Back to settings use a straight back arrow. The original prompt below is retained as design history.
 
 ## Generation prompt
 

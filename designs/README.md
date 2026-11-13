@@ -2,7 +2,7 @@
 
 ## Current revision: v3 — grey, navy and blue
 
-Two visual mockups generated with the built-in image generation tool. Application code has not changed. Viewport sizes and touch targets are design intentions, not verified implementation measurements.
+Visual mockups generated with the built-in image generation tool. Build 0.3.0 implements the regular v3 remote and settings references as native Android screens. Automated layout checks cover a 360×684dp content area for compact phones and 390×788dp for regular phones, plus settings at 390×744dp. Native renders are generated under `app/build/outputs/design/` by the design tests. Physical-device and TalkBack checks remain to be completed.
 
 - [Regular phone v3](home-remote-regular-v3.png)
 - [Compact phone v3](home-remote-compact-v3.png)
@@ -11,7 +11,7 @@ Two visual mockups generated with the built-in image generation tool. Applicatio
 
 Keep the whole everyday remote in one view. Arrange content from top to bottom:
 
-1. TV selector, connection status and reconnect action, with settings integrated at the right. No app name or branding icon at the top.
+1. TV selector, connection status and reconnect action, with a separate settings button at the right and a 12dp gap between them (revised in 0.3.2). No app name or branding icon at the top.
 2. Favourite apps heading and Edit, with text-only shortcut buttons. No favourite logos, icons or monograms.
 3. Keyboard action.
 4. Flexible space.
@@ -20,7 +20,9 @@ Keep the whole everyday remote in one view. Arrange content from top to bottom:
 
 Keep the control group anchored low across phone sizes. On shorter screens, reduce the D-pad diameter and gaps, and keep favourite buttons compact and text-only. Preserve readable labels and touch targets. The concepts show two favourites; additional favourites can use an in-place paged group. Enlarged system text may require an accessible scrolling fallback.
 
-Show playback only when verified for the selected TV. Keep unsupported volume, power, voice, input switching, installed-app inventory and playback timeline out of the design.
+Following phone feedback in 0.3.1, show Play / pause for both TVs, with commands disabled until connected. Verification remains a testing record rather than a visibility gate. Keep unsupported volume, power, voice, input switching, installed-app inventory and playback timeline out of the design. Centre direction glyphs geometrically inside each segment's button, independently of font metrics.
+
+The approved 0.3.3 preview increases the circle to a maximum of 340dp, constrained by available width and height. Settings stays square and matches the device selector height. Long device names use a continuous single-line marquee; short names stay stationary. Refresh uses two clockwise arrows. Back, Home and Play / pause keep their existing native icons.
 
 ## Palette
 

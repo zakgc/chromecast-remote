@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.shadows.ShadowAlertDialog
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
@@ -39,35 +40,43 @@ class AppTest {
     private fun views(root: View): List<View> = listOf(root) + if (root is ViewGroup) (0 until root.childCount).flatMap { views(root.getChildAt(it)) } else emptyList()
     private fun buttons(activity: MainActivity) = views(activity.window.decorView).filterIsInstance<Button>()
     private fun click(activity: MainActivity, text: String) = buttons(activity).first { it.text.toString() == text }.performClick()
+    private fun openSettings(app: MainActivity) = buttons(app).first { it.contentDescription == "Settings" }.performClick()
+    private fun switchTv(app: MainActivity, index: Int) {
+        buttons(app).first { it.contentDescription == "Choose TV" }.performClick()
+        val dialog = ShadowAlertDialog.getLatestAlertDialog()
+        dialog.listView.performItemClick(null, index, index.toLong())
+    }
     @Test fun firstLaunchShowsRemoteWithDisabledCommandsAndUsableSetup() {
         val app = launch()
         val up = buttons(app).first { it.contentDescription == "Up" }
         assertFalse(up.isEnabled)
         assertFalse(buttons(app).any { it.text == "Apps" })
-        click(app, "+ Add a TV")
+        click(app, "Add a TV")
         assertTrue(buttons(app).any { it.text == "Add by IP address" })
-        click(app, "← Remote")
+        click(app, "Back to settings")
+        click(app, "Back to remote")
         assertTrue(buttons(app).any { it.contentDescription == "Select" })
     }
-    @Test fun savedSelectionAndOneTapSwitchingKeepControlsDisabledUntilConnected() {
+    @Test fun savedSelectionAndSelectorSwitchingKeepControlsDisabledUntilConnected() {
         val living = TvDevice(name = "Living Room", host = "192.168.1.20")
         val bedroom = TvDevice(name = "Bedroom", host = "192.168.1.21")
         store.save(living); store.save(bedroom); store.selected = bedroom.id
         val app = launch()
-        assertTrue(buttons(app).first { it.text.startsWith("Bedroom\n") }.isSelected)
-        buttons(app).first { it.text.startsWith("Living Room\n") }.performClick()
+        assertTrue(views(app.window.decorView).filterIsInstance<TextView>().any { it.text == "Bedroom" })
+        switchTv(app, 0)
         assertEquals(living.id, store.selected)
-        assertTrue(buttons(app).first { it.text.startsWith("Living Room\n") }.isSelected)
+        assertTrue(views(app.window.decorView).filterIsInstance<TextView>().any { it.text == "Living Room" })
         assertFalse(buttons(app).first { it.contentDescription == "Up" }.isEnabled)
     }
-    @Test fun optionalControlVisibilityFollowsEachDeviceAfterSwitch() {
+    @Test fun playbackIsAvailableForBothTvsRegardlessOfOldVerificationFlags() {
         val living = TvDevice(name = "Living Room", host = "192.168.1.20", volumeVerified = true)
         val bedroom = TvDevice(name = "Bedroom", host = "192.168.1.21", playbackVerified = true)
         store.save(living); store.save(bedroom); store.selected = living.id
         val app = launch()
-        assertTrue(buttons(app).any { it.text == "Vol +" })
-        assertFalse(buttons(app).any { it.text == "Play / pause" })
-        buttons(app).first { it.text.startsWith("Bedroom\n") }.performClick()
+        assertFalse(buttons(app).any { it.text == "Vol +" })
+        assertTrue(buttons(app).any { it.text == "Play / pause" })
+        assertFalse(buttons(app).first { it.text == "Play / pause" }.isEnabled)
+        switchTv(app, 1)
         assertFalse(buttons(app).any { it.text == "Vol +" })
         assertTrue(buttons(app).any { it.text == "Play / pause" })
     }
@@ -85,15 +94,16 @@ class AppTest {
         assertEquals(0, reloaded.testResults(bedroom.id).length())
         assertEquals("test-pin-a", reloaded.devices().single().fingerprint)
     }
-    @Test fun reportsStayUntestedUntilExplicitlyRecorded() {
+    @Test fun settingsKeepsConnectionHelpAndRemovesTheSetupTestingScreen() {
         val device = TvDevice(name = "Living Room", host = "192.168.1.20")
         store.save(device)
         val app = launch()
-        click(app, "Test this setup")
-        assertTrue(buttons(app).any { it.text == "Home\nNot tested" })
-        assertFalse(buttons(app).first { it.text == "Play / pause" }.isEnabled)
+        openSettings(app)
+        assertFalse(buttons(app).any { it.text == "Test this setup" })
+        assertFalse(buttons(app).any { it.text == "Share test report" })
+        click(app, "Connection help")
+        assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing)
         assertEquals(0, store.testResults(device.id).length())
-        assertTrue(views(app.window.decorView).filterIsInstance<TextView>().any { it.text.contains("Android") })
     }
     @Test fun upgradingAnOldPairingPreservesItsNameAndTheOtherTvsIdentity() {
         val context = RuntimeEnvironment.getApplication()

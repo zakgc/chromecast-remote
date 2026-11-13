@@ -1,8 +1,4 @@
 <resources>
-    <string name="device_tab">%1$s\n%2$s</string>
-    <string name="haptic_setting">Subtle button vibration</string>
-    <string name="volume_verified">Volume and mute worked: show on remote</string>
-    <string name="playback_verified">Play / pause worked: show on remote</string>
     <string name="enter_on_tv">Enter / search on TV</string>
     <string name="keyboard_connecting">Connecting the keyboard…</string>
     <string name="keyboard_unsupported">This TV did not offer phone keyboard input.</string>
@@ -10,5 +6,4 @@
     <string name="keyboard_live_ready">Type normally. Changes appear on the TV.</string>
     <string name="keyboard_live_sending">Typing on the TV…</string>
     <string name="keyboard_live_submitted">Search / Enter sent to the TV.</string>
-    <string name="automatic_keyboard">Open phone keyboard automatically for TV text boxes</string>
 </resources>
