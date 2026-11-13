@@ -132,10 +132,6 @@ class RemoteController(private val changed: (RemoteState) -> Unit) : Closeable, 
         if (state.features and RemoteProtocol.APP_LINKS == 0) return false
         return queue { RemoteProtocol.appLink(app.link) }
     }
-    fun sendText(sessionId: Long, target: TvTextTarget, text: String, done: (Boolean, String) -> Unit) {
-        if (state.sessionId != sessionId) { done(false, "The TV connection changed. Reopen the keyboard."); return }
-        queue(done) { it.insertText(target, text) }
-    }
     override fun replaceText(sessionId: Long, target: TvTextTarget, text: String, selection: Int, done: (Boolean, String) -> Unit) {
         if (state.sessionId != sessionId) { done(false, "The TV connection changed."); return }
         queue(done) { it.replaceText(target, text, selection) }

@@ -46,7 +46,7 @@ class MainActivity : Activity() {
     private var screen = "remote"
     private var statusView: TextView? = null
     private val tvStatuses = mutableListOf<Pair<String, TextView>>()
-    private val controls = mutableListOf<Pair<Button, Int>>()
+    private val controls = mutableListOf<Button>()
     private val appButtons = mutableListOf<Button>()
     private var favouritePage = 0
     private lateinit var repeatPress: HoldToRepeat
@@ -135,11 +135,6 @@ class MainActivity : Activity() {
         addView(view, LinearLayout.LayoutParams(-1, if (height > 0) dp(height) else height).apply { bottomMargin = dp(10) })
     }
     private fun LinearLayout.weighted(view: View) { addView(view, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) }) }
-    private fun reset(title: String, subtitle: String) {
-        clearScreen()
-        body.add(label(title, 28f).apply { typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
-        if (subtitle.isNotBlank()) body.add(label(subtitle, 15f, muted))
-    }
     private fun clearScreen() {
         repeatPress.cancel()
         body.pad = null
@@ -255,7 +250,7 @@ class MainActivity : Activity() {
                 controller.send(key)
             }
         }
-        controls.add(view to key)
+        controls.add(view)
         if (key in 19..22) repeatPress.attach(view)
         return view
     }
@@ -268,7 +263,7 @@ class MainActivity : Activity() {
         statusView?.text = if (screen == "remote") "● ${if (state.connected) "Connected" else if (selected()?.paired == false) "Pairing needed" else state.label}" else state.label
         if (screen == "remote") statusView?.setTextColor(if (state.connected) accent else muted)
         statusView?.contentDescription = listOf(state.label, state.details).filter { it.isNotBlank() }.joinToString(". ")
-        controls.forEach { (button, _) -> button.isEnabled = state.connected; button.alpha = if (state.connected) 1f else 0.35f }
+        controls.forEach { button -> button.isEnabled = state.connected; button.alpha = if (state.connected) 1f else 0.35f }
         appButtons.forEach { button ->
             button.isEnabled = state.connected && state.features and RemoteProtocol.APP_LINKS != 0
             button.alpha = if (button.isEnabled) 1f else 0.35f
@@ -430,7 +425,8 @@ class MainActivity : Activity() {
     }
     private fun showDevices() {
         screen = "devices"
-        reset("Your televisions.", "")
+        clearScreen()
+        body.add(label("Your televisions.", 28f).apply { typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
         body.add(backButton("Back to settings") { showSettings() })
         store.devices().forEach { device ->
             body.add(label(device.name, 24f))
@@ -454,7 +450,7 @@ class MainActivity : Activity() {
         foundList = column().also { body.add(it) }
         renderFound()
         if (store.devices().size < 2) body.add(button("Add by IP address") { editDevice(null) })
-        body.add(label("This test build uses the unofficial Android TV remote protocol. A Google TV update may affect compatibility. Pairing keys stay protected on this phone. No analytics or sign-in.", 14f, muted))
+        body.add(label("Uses the unofficial Android TV remote protocol. A Google TV update may affect compatibility. Pairing keys stay protected on this phone. No analytics or sign-in.", 14f, muted))
     }
     private fun deviceFound(tv: FoundTv) {
         found[tv.name] = tv
@@ -559,7 +555,7 @@ class MainActivity : Activity() {
     private fun cancelPairing() { pairingToken++; pairing?.close(); pairing = null; pairingDialog?.dismiss(); pairingDialog = null }
     private fun help() {
         AlertDialog.Builder(this).setTitle("Getting connected")
-            .setMessage("1. Wake the Chromecast with its physical remote.\n\n2. Put this phone and the Chromecast on the same home Wi-Fi. Avoid guest Wi-Fi and turn off a VPN if it blocks local devices.\n\n3. Search again. If discovery fails, find the TV's IP address in Google TV Settings → Network & Internet and add it manually.\n\n4. If the TV was reset or its identity changed, pair it again.\n\n5. Check Android TV Remote Service is installed and up to date. You do not need to turn on debugging.\n\nPairings are separate on each phone. Removing a TV deletes its credentials here; revoke old phone access in the TV settings if needed.\n\nThis prototype uses an unofficial local protocol. Test both TVs before relying on it.")
+            .setMessage("1. Wake the Chromecast with its physical remote.\n\n2. Put this phone and the Chromecast on the same home Wi-Fi. Avoid guest Wi-Fi and turn off a VPN if it blocks local devices.\n\n3. Search again. If discovery fails, find the TV's IP address in Google TV Settings → Network & Internet and add it manually.\n\n4. If the TV was reset or its identity changed, pair it again.\n\n5. Check Android TV Remote Service is installed and up to date. You do not need to turn on debugging.\n\nPairings are separate on each phone. Removing a TV deletes its credentials here; revoke old phone access in the TV settings if needed.\n\nUses an unofficial local protocol. Google TV updates may affect compatibility.")
             .setPositiveButton("Got it", null).show()
     }
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

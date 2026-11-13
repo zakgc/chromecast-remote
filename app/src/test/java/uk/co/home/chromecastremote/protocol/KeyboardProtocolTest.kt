@@ -15,42 +15,42 @@ class KeyboardProtocolTest {
     @Test fun selectionAndReplacementAreOneBatchBoundToTheFocusedField() {
         val keyboard = TvKeyboard().apply { receive(Wire.parse(focus(text = "hello world", start = 6, end = 11))) }
         val target = keyboard.target!!
-        val batch = Wire.parse(keyboard.insert(target, "TV 😀")).nested(21)
+        val batch = Wire.parse(keyboard.replace(target, "hello TV 😀", 11)).nested(21)
         assertEquals(17, batch.num(1)); assertEquals(9, batch.num(2))
         val edits = batch.filter { it.number == 3 }.map { Wire.parse(it.bytes!!) }
-        assertEquals(6, edits[0].nested(1).num(2)); assertEquals(11, edits[0].nested(1).num(3))
-        assertEquals(6, edits[1].nested(2).num(1)); assertEquals(11, edits[1].nested(2).num(2))
-        assertEquals("TV 😀", edits[1].nested(2).string(3))
+        assertEquals(0, edits[0].nested(1).num(2)); assertEquals(11, edits[0].nested(1).num(3))
+        assertEquals(0, edits[1].nested(2).num(1)); assertEquals(11, edits[1].nested(2).num(2))
+        assertEquals("hello TV 😀", edits[1].nested(2).string(3))
         assertEquals(11, keyboard.target!!.start) // The emoji is two Android UTF-16 code units.
     }
-    @Test fun successiveSendsAppendAtTheUpdatedCursorRatherThanReplacingEarlierText() {
+    @Test fun successiveEditsReplaceTheUpdatedFullFieldRange() {
         val keyboard = keyboard()
-        keyboard.insert(keyboard.target!!, " one")
+        keyboard.replace(keyboard.target!!, "hello one", 9)
         val oldTarget = keyboard.target!!
-        val second = Wire.parse(keyboard.insert(oldTarget, " two")).nested(21)
-        val replacement = Wire.parse(second.filter { it.number == 3 }.last().bytes!!).nested(2)
-        assertEquals(9, replacement.num(1)); assertEquals(9, replacement.num(2))
+        val second = Wire.parse(keyboard.replace(oldTarget, "hello one two", 13)).nested(21)
+        val replacement = Wire.parse(second.filter { it.number == 3 }[1].bytes!!).nested(2)
+        assertEquals(0, replacement.num(1)); assertEquals(9, replacement.num(2))
         assertEquals(13, keyboard.target!!.length)
     }
     @Test fun oldFieldAndOldConnectionContextCannotBeUsedAfterFocusChanges() {
         val keyboard = keyboard()
         val old = keyboard.target!!
         keyboard.receive(Wire.parse(focus(id = 18)))
-        assertThrows(IllegalArgumentException::class.java) { keyboard.insert(old, "stale") }
+        assertThrows(IllegalArgumentException::class.java) { keyboard.replace(old, "stale", 0) }
         keyboard.receive(Wire.parse(focus(id = 17)))
         assertNotEquals(old.focusVersion, keyboard.target!!.focusVersion)
         assertThrows(IllegalArgumentException::class.java) { keyboard.submit(old) }
     }
-    @Test fun externalTextOrSelectionChangesInvalidateAnAlreadyQueuedSnapshot() {
+    @Test fun externalTextOrSelectionChangesInvalidateAnAlreadyQueuedSubmit() {
         val keyboard = keyboard()
         val before = keyboard.target!!
         keyboard.receive(Wire.parse(Wire.bytes(22, Wire.bytes(2, Wire.message(
             Wire.number(1, 10), Wire.text(2, "changed"), Wire.number(3, 7), Wire.number(4, 7)
         )))))
-        assertThrows(IllegalArgumentException::class.java) { keyboard.insert(before, "stale") }
+        assertThrows(IllegalArgumentException::class.java) { keyboard.submit(before) }
         val updated = keyboard.target!!
         keyboard.receive(Wire.parse(Wire.bytes(23, Wire.message(Wire.number(2, 1), Wire.number(3, 2)))))
-        assertThrows(IllegalArgumentException::class.java) { keyboard.insert(updated, "stale") }
+        assertThrows(IllegalArgumentException::class.java) { keyboard.submit(updated) }
     }
     @Test fun keyboardHideResetAndNonEditableAppMetadataClearTheTarget() {
         val keyboard = keyboard()
@@ -69,11 +69,10 @@ class KeyboardProtocolTest {
         keyboard.receive(Wire.parse(focus(options = 3 or 0x40000000)))
         assertArrayEquals(RemoteProtocol.key(66), keyboard.submit(keyboard.target!!))
     }
-    @Test fun emptyAndOversizedTextAreRejectedWithoutChangingCursor() {
+    @Test fun oversizedTextIsRejectedWithoutChangingCursor() {
         val keyboard = keyboard()
         val before = keyboard.target!!
-        assertThrows(IllegalArgumentException::class.java) { keyboard.insert(before, "") }
-        assertThrows(IllegalArgumentException::class.java) { keyboard.insert(before, "x".repeat(TvKeyboard.MAX_TEXT + 1)) }
+        assertThrows(IllegalArgumentException::class.java) { keyboard.replace(before, "x".repeat(TvKeyboard.MAX_TEXT + 1), 0) }
         assertEquals(before, keyboard.target)
     }
     @Test fun keyboardIsNegotiatedOnlyOnRequestAndNeverInventsCapabilities() {
@@ -86,13 +85,13 @@ class KeyboardProtocolTest {
         keyboard.receive(Wire.bytes(2, byteArrayOf()))
         keyboard.receive(focus())
         assertNotNull(keyboard.textTarget())
-        assertNotNull(keyboard.insertText(keyboard.textTarget()!!, "test"))
+        assertNotNull(keyboard.replaceText(keyboard.textTarget()!!, "test", 4))
         val unsupported = RemoteProtocol(true)
         unsupported.receive(Wire.bytes(1, Wire.number(1, 3)))
         unsupported.receive(Wire.bytes(2, byteArrayOf()))
         unsupported.receive(focus())
         assertNull(unsupported.textTarget())
-        assertThrows(IllegalStateException::class.java) { unsupported.insertText(keyboard.textTarget()!!, "no") }
+        assertThrows(IllegalStateException::class.java) { unsupported.replaceText(keyboard.textTarget()!!, "no", 2) }
     }
     @Test fun liveReplacementSupportsEditingAndDeletingTheEntireField() {
         val keyboard = keyboard()

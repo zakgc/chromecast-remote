@@ -1,68 +1,56 @@
-# Phase 1: test on the actual devices
+# Hardware results and regression checklist
 
-Status: **owner confirms basic remote use, reopening without re-pairing, and phone Wi-Fi off/on recovery with both TVs on the Galaxy S25 and Galaxy S22**. Remaining individual checks and measurements are listed below.
+The owner confirmed basic remote use, reopening without re-pairing and phone Wi-Fi recovery with both TVs on the Galaxy S25 and Galaxy S22. The [original S25 report](reports/2026-11-13-s25.md) records detailed Guest Room TV results; the owner later confirmed the same functional results on Maria TV.
 
-Latest update, 13 November 2026: the owner reports **0.2.1 works well** after the corrected SmartTube launch, automatic live keyboard, and editable/reorderable favourites. This is a successful general feature check; the exact combinations used for the latest check were not specified. The baseline matrix below remains the record of individually reported results.
+Later feature checks confirmed hold-to-repeat and Nuvio launching, followed by a general successful check of SmartTube, the live keyboard and editable favourites. Exact phone/TV combinations for those later checks were not specified. These are earlier-build observations, not a complete hardware validation of 1.0.0.
 
-The experimental **Apps** button in 0.2.2 sent `KEYCODE_ALL_APPS` (284). The owner reported that it did not work and requested removal. Version **0.2.3** removes the button and its checklist entry. No fallback navigation macro or TV helper was added.
-
-Initial owner testing on 13 November reported an RSA/Conscrypt pairing failure in 0.1. With 0.1.1, the owner confirmed the Guest Room TV's code was accepted, but Connected never appeared despite the TV being awake on the same Wi-Fi. After the 0.1.2 startup correction, the owner confirmed both TVs work on the S25, then confirmed the S22 works in response to the request to test it with each TV. The owner subsequently confirmed that closing/reopening the app and turning phone Wi-Fi off/back on reconnect without pairing again. Basic remote use and these reconnection checks are owner-confirmed across all four combinations. TV sleep/restart/unavailability, detailed controls, optional controls, accessibility, and performance measurements remain to be recorded. Saved names remain in place.
-
-The [exported S25 report](reports/2026-11-13-s25.md) additionally records discovery, pairing, all navigation controls, isolated switching, reopening, Wi-Fi recovery, and play/pause as Passed for Guest Room TV. The owner subsequently confirmed the same functional results on Maria TV. Its timing, model, and service metadata are not inferred from Guest Room TV's report. The owner also reported that volume does not work with either TV even using the official Chromecast physical remotes. Treat volume as unavailable in the current TV setups and keep the app's volume/mute group disabled; volume support is not required for this personal version.
+Volume does not work in either TV setup even with the official physical remotes, per the owner. Volume and mute are omitted from the app.
 
 ## Inventory
 
-| Item | Model / Android or Google TV version | Network / notes |
+| Item | Model / software | Evidence |
 | --- | --- | --- |
-| Phone A | Galaxy S25 / Samsung SM-S931B — reported Android 17, API 37 | Exported Guest Room TV checklist; owner confirms same functional results on Maria TV |
-| Phone B | Galaxy S22 — record Android version | Owner reports working on 0.1.2 |
-| TV A | Guest Room TV — Google Chromecast HD; Remote Service 7.00.999235495; Google TV OS version unrecorded | Working from both phones; detailed S25 report received |
-| TV B | Maria TV — record exact Chromecast model / Google TV version / Remote Service version | Working from both phones; owner confirms same S25 functional checks as Guest Room TV |
+| Phone A | Galaxy S25 / Samsung SM-S931B; reported Android 17, API 37 | Detailed export for Guest Room TV; owner confirms same functional results on Maria TV |
+| Phone B | Galaxy S22; Android version unrecorded | General owner confirmation for both TVs |
+| TV A | Guest Room TV; Google Chromecast HD; Remote Service 7.00.999235495; Google TV OS version unrecorded | Working from both phones |
+| TV B | Maria TV; exact Chromecast model and software versions unrecorded | Working from both phones |
 
-Use the app's per-TV checklist on **each phone**, and share reports after completing it. The reports are local and can be sent manually. Leave individual checks marked Not tested until specifically observed; the owner's general confirmation below does not establish every control, recovery scenario, or measurement.
+## Reported baseline
 
-## Four-combination matrix
-
-The table records baseline 0.1.2 testing. The owner subsequently confirmed hold-to-repeat and Nuvio launching in 0.2.0, then reported that **0.2.1 works well** after the SmartTube and keyboard corrections and editable favourites. Exact phone/TV combinations for these later feature checks were not specified; see [the current feature notes](features-0.2.1.md#install-and-check).
+Results received 13 November 2026, on 0.1.2. Not recorded means no individual result was supplied, even where general remote use was confirmed.
 
 | Check | S25 → TV A | S25 → TV B | S22 → TV A | S22 → TV B |
 | --- | --- | --- | --- | --- |
-| Basic remote use (owner report, 13 November) | Working | Working | Working | Working |
-| Discovery | Passed (export) | Passed (owner) | Not tested | Not tested |
-| Manual-IP fallback | Not tested | Not tested | Not tested | Not tested |
-| Pair with on-screen code | Passed (export) | Passed (owner) | Not tested | Not tested |
-| Up, Down, Left, Right | Passed (export) | Passed (owner) | Not tested | Not tested |
-| Select, Back, Home | Passed (export) | Passed (owner) | Not tested | Not tested |
-| Switch: only selected TV responds | Passed (export) | Passed (owner) | Not tested | Not tested |
+| Basic remote use | Working | Working | Working | Working |
+| Discovery | Passed (export) | Passed (owner) | Not recorded | Not recorded |
+| Pair with on-screen code | Passed (export) | Passed (owner) | Not recorded | Not recorded |
+| Directions, Select, Back, Home | Passed (export) | Passed (owner) | Not recorded | Not recorded |
+| Switch: only selected TV responds | Passed (export) | Passed (owner) | Not recorded | Not recorded |
 | Close/reopen without pairing again | Working | Working | Working | Working |
-| Sleep/wake; restart TV | Not tested | Not tested | Not tested | Not tested |
-| Phone Wi-Fi off/on recovery without re-pairing | Working | Working | Working | Working |
-| Unavailable TV handling | Not tested | Not tested | Not tested | Not tested |
-| Volume/mute group | Disabled: TV setup limitation | Disabled: TV setup limitation | Disabled: TV setup limitation | Disabled: TV setup limitation |
-| Play/pause in a playing media app | Passed (export); enabled | Passed (owner); setting not recorded | Not tested | Not tested |
-| Large text / TalkBack | Not tested | Not tested | Not tested | Not tested |
+| Phone Wi-Fi off/on recovery | Working | Working | Working | Working |
+| Play/pause during media playback | Passed (export) | Passed (owner) | Not recorded | Not recorded |
 
-## Important exercises
+Manual IP entry, TV sleep/restart, unavailable-TV handling, large text and TalkBack remain unrecorded across all four combinations. Physical vibration also needs checking.
 
-1. Run discovery and pairing for both TVs. Deliberately mistype a code, correct it, then cancel a separate pairing attempt. Ensure no credentials are saved for a failed pairing.
-2. Put both TVs on different home-screen positions. Select TV A, press one direction, and verify only A moves. Switch quickly while tapping. Confirm old presses never appear on B; repeat B → A.
-3. Leave the app, reopen, force-stop/reopen, then restart the phone. Saved pairings should reconnect without new codes. Removing a device should require pairing again when re-added.
-4. Turn phone Wi-Fi off, wait for the unavailable state, turn it back on, and verify automatic foreground recovery. Disconnect TV power, reconnect, and use Reconnect if needed. Re-scan to refresh changed IPs. Try incorrect/old IPs and ensure the app remains usable.
-5. Check TV sleep separately from complete power loss. Deep sleep may stop the remote service; wake using the physical remote. Do not assume phone power control exists.
-6. Play/pause is confirmed on both TVs from the S25; enable it per TV/phone after checking. Leave volume/mute disabled for these TV setups. Revisit volume only if the TV or soundbar configuration changes and the owner wants to test it again.
-7. Increase Android display/text size, use landscape, and enable TalkBack. Verify all controls are reachable and correctly named, device selection is clear, and statuses are understandable. Hold-to-repeat is intentionally absent.
+## Manual regression checks
 
-## Measure on both phones (S22 is the baseline)
+Record results outside the app for each phone/TV combination; there is no in-app test checklist or report export. Include the app version and actual phone/TV software versions. Leave unobserved cases untested.
 
-Reported sample for S25 → Guest Room TV on 0.1.2: first-layout activity estimate **68 ms**; connection **587 ms**. These are single app-reported observations. They do not establish full cold-start time, key response latency, repeated-run statistics, or S22 performance.
+1. Discover and pair both TVs. Test manual IP entry, a mistyped code followed by correction, and cancellation. Failed pairing must not save credentials.
+2. Switch TVs while tapping and holding arrows. Only the selected TV should respond. Release or cross a pad segment, disconnect, or leave the app: scrolling must stop and never resume on another connection.
+3. Reopen and force-stop/reopen the app, then restart the phone. Pairings, selected TV, preferences and favourites should persist. Removing and re-adding a TV must require pairing again.
+4. Turn phone Wi-Fi off/on, restart the TV, try an incorrect IP, and re-scan after an IP change. Check automatic foreground recovery and that unavailable TVs leave the app usable. Test sleep separately; wake with the physical remote when necessary.
+5. Check Play / pause in each media app. Open favourite shortcuts and confirm the intended app opens on the selected TV. Add, rename, reorder, remove and page through favourites; verify persistence and separation between TVs.
+6. Focus a standard TV text field. Check automatic opening, typing, pasting, deletion, cursor movement and Search / Enter. Close with Done, change focus, and retry. Test manual Keyboard with automatic mode disabled. Change TV fields or disconnect during typing: unsent text must not replay into another field/session.
+7. Check vibration and both preference switches. Increase Android text/display size, rotate the phone, and use TalkBack. Confirm controls remain reachable, correctly named and usable; TalkBack arrow activation should remain a single press.
+8. Install a same-key update over an existing build. Verify saved TVs, pairing identities, preferences and favourites remain usable without re-pairing.
 
-- Startup: record opening from cold and warm states, at least five trials each. The app's first-layout estimate is only an activity timing aid; use a recording or Android startup tools for the actual first visible frame. Target: usable remote displayed within 1 second, before connection finishes.
-- Connection/switching: read the connection time in the status detail, repeat ten times, and record median and worst. Observe whether the first key is accepted after Connected.
-- Key latency: use a video showing the finger tap and TV movement for ten presses; calculate elapsed frames divided by frame rate. Do not substitute socket-write time for TV response time.
-- Size: record APK size separately from installed app/data size in Android Settings → Apps → Chromecast Remote → Storage.
-- Battery: compare a controlled period in foreground and an hour with the app closed, noting phone battery settings and Wi-Fi conditions. Confirm no background service or persistent notification.
-- Final budgets for size, latency, connection time, and battery should be chosen after collecting the baseline.
+## Measurements
 
-## Decision gate
+The S25 → Guest Room TV export reported a **68 ms activity-layout estimate** and **587 ms connection sample**. These single observations do not establish full cold-start time, key latency, repeated-run statistics or S22 performance. The current app no longer exposes the prototype's layout estimate/report screen.
 
-Proceed with the full app only after pairing, navigation, switching, and reconnection pass reliably in all four combinations and the owner accepts the documented unofficial-protocol risk. Investigate failures first. If navigation is unreliable, stop and consider Google's supported remote. Full UI polish, hold-to-repeat, release packaging, and broader features remain beyond this gate.
+- Startup: record at least five cold and five warm starts using video or Android startup tools.
+- Connection/switching: repeat ten times; record median and worst, and whether the first key works after Connected. Connection details are included in the status accessibility description.
+- Key latency: record the finger tap and TV movement together; use elapsed video frames rather than socket-write time.
+- Size: record APK size separately from installed app/data size in Android Settings.
+- Battery: compare controlled foreground use with an hour closed, noting Wi-Fi and phone battery settings.

@@ -6,7 +6,7 @@ import uk.co.home.chromecastremote.protocol.Wire.num
 import uk.co.home.chromecastremote.protocol.Wire.string
 import java.io.IOException
 
-/** Keyboard is negotiated only while its dialog is open, keeping the TV's normal input method intact. */
+/** IME is requested for automatic keyboard mode or while the manual keyboard dialog is open. */
 class RemoteProtocol(private val keyboardEnabled: Boolean = false) {
     var features = 0; private set
     @Volatile var ready = false; private set
@@ -14,10 +14,6 @@ class RemoteProtocol(private val keyboardEnabled: Boolean = false) {
     private var configured = false
     private val keyboard = TvKeyboard()
     @Synchronized fun textTarget(): TvTextTarget? = keyboard.target
-    @Synchronized fun insertText(target: TvTextTarget, text: String): ByteArray {
-        check(ready && features and IME != 0) { "The TV keyboard is not connected." }
-        return keyboard.insert(target, text)
-    }
     @Synchronized fun replaceText(target: TvTextTarget, text: String, selection: Int): ByteArray {
         check(ready && features and IME != 0) { "The TV keyboard is not connected." }
         return keyboard.replace(target, text, selection)

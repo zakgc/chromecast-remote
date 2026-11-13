@@ -44,7 +44,7 @@ class RemoteDesignTest {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("home_remote", Context.MODE_PRIVATE).edit().clear().commit()
         store = DeviceStore(context)
-        val guest = TvDevice(id = "guest", name = "Guest Room TV", host = "192.168.1.20", fingerprint = "saved-pin", playbackVerified = true)
+        val guest = TvDevice(id = "guest", name = "Guest Room TV", host = "192.168.1.20", fingerprint = "saved-pin")
         store.save(guest)
         store.save(TvDevice(id = "maria", name = "Maria TV", host = "192.168.1.21", fingerprint = "saved-pin"))
         store.selected = guest.id

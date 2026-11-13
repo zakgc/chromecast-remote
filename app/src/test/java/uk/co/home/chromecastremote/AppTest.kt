@@ -69,9 +69,14 @@ class AppTest {
         assertFalse(buttons(app).first { it.contentDescription == "Up" }.isEnabled)
     }
     @Test fun playbackIsAvailableForBothTvsRegardlessOfOldVerificationFlags() {
-        val living = TvDevice(name = "Living Room", host = "192.168.1.20", volumeVerified = true)
-        val bedroom = TvDevice(name = "Bedroom", host = "192.168.1.21", playbackVerified = true)
+        val living = TvDevice(name = "Living Room", host = "192.168.1.20")
+        val bedroom = TvDevice(name = "Bedroom", host = "192.168.1.21")
         store.save(living); store.save(bedroom); store.selected = living.id
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("home_remote", Context.MODE_PRIVATE)
+        val oldDevices = JSONArray(prefs.getString("devices", "[]"))
+        oldDevices.getJSONObject(0).put("volume", true).put("playback", false)
+        oldDevices.getJSONObject(1).put("volume", false).put("playback", true)
+        prefs.edit().putString("devices", oldDevices.toString()).commit()
         val app = launch()
         assertFalse(buttons(app).any { it.text == "Vol +" })
         assertTrue(buttons(app).any { it.text == "Play / pause" })
@@ -79,19 +84,22 @@ class AppTest {
         switchTv(app, 1)
         assertFalse(buttons(app).any { it.text == "Vol +" })
         assertTrue(buttons(app).any { it.text == "Play / pause" })
+        store.save(store.devices().last().copy(name = "Renamed bedroom"))
+        assertEquals(listOf(living, bedroom.copy(name = "Renamed bedroom")), DeviceStore(RuntimeEnvironment.getApplication()).devices())
     }
     @Test fun savedPairingAndSeparateTestRecordsSurviveStoreReloadAndRemoval() {
         val living = TvDevice(name = "Living Room", host = "192.168.1.20", fingerprint = "test-pin-a")
         val bedroom = TvDevice(name = "Bedroom", host = "192.168.1.21", fingerprint = "test-pin-b")
         store.save(living); store.save(bedroom); store.selected = bedroom.id
-        store.testResult(living.id, "Home", "Passed")
-        store.testResult(bedroom.id, "Home", "Failed")
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("home_remote", Context.MODE_PRIVATE)
+        prefs.edit().putString("tests_${living.id}", "{\"Home\":\"Passed\"}")
+            .putString("tests_${bedroom.id}", "{\"Home\":\"Failed\"}").commit()
         val reloaded = DeviceStore(RuntimeEnvironment.getApplication())
         assertEquals(listOf(living, bedroom), reloaded.devices())
         reloaded.remove(bedroom.id)
         assertEquals(living.id, reloaded.selected)
-        assertEquals("Passed", reloaded.testResults(living.id).getString("Home"))
-        assertEquals(0, reloaded.testResults(bedroom.id).length())
+        assertEquals("{\"Home\":\"Passed\"}", prefs.getString("tests_${living.id}", null))
+        assertFalse(prefs.contains("tests_${bedroom.id}"))
         assertEquals("test-pin-a", reloaded.devices().single().fingerprint)
     }
     @Test fun settingsKeepsConnectionHelpAndRemovesTheSetupTestingScreen() {
@@ -103,7 +111,6 @@ class AppTest {
         assertFalse(buttons(app).any { it.text == "Share test report" })
         click(app, "Connection help")
         assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing)
-        assertEquals(0, store.testResults(device.id).length())
     }
     @Test fun upgradingAnOldPairingPreservesItsNameAndTheOtherTvsIdentity() {
         val context = RuntimeEnvironment.getApplication()

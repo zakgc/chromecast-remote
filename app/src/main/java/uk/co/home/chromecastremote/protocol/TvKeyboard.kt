@@ -49,19 +49,6 @@ class TvKeyboard {
         val length = text.length // Android cursor offsets count UTF-16 code units.
         return TvTextTarget(id, status.num(1), focusVersion, status.num(3).coerceIn(0, length), status.num(4).coerceIn(0, length), length, options, text, inputType, packageName)
     }
-    fun insert(expected: TvTextTarget, text: String): ByteArray {
-        require(target == expected) { "The TV text field changed. Try sending again." }
-        require(text.isNotEmpty() && text.length <= MAX_TEXT) { "Enter between 1 and $MAX_TEXT characters." }
-        val start = minOf(expected.start, expected.end)
-        val end = maxOf(expected.start, expected.end)
-        val select = Wire.bytes(1, Wire.message(Wire.number(2, start), Wire.number(3, end)))
-        val replace = Wire.bytes(2, Wire.message(Wire.number(1, start), Wire.number(2, end), Wire.text(3, text)))
-        val message = batch(expected, select, replace)
-        val cursor = start + text.length
-        val updated = expected.text.take(start) + text + expected.text.drop(end)
-        target = expected.copy(start = cursor, end = cursor, length = expected.length - (end - start) + text.length, text = updated)
-        return message
-    }
     fun replace(expected: TvTextTarget, text: String, selection: Int): ByteArray {
         val current = target ?: throw IllegalArgumentException("The TV text box is no longer focused.")
         require(current.fieldId == expected.fieldId && current.focusVersion == expected.focusVersion) { "The TV text box changed." }
