@@ -20,12 +20,24 @@ data class TvDevice(
 
 class DeviceStore(context: Context) {
     private val prefs = context.getSharedPreferences("home_remote", Context.MODE_PRIVATE)
+    init {
+        if (!prefs.getBoolean("editable_favourites_v1", false)) {
+            // Preserve buttons from 0.2.0, including its implicit defaults. New TVs start empty.
+            devices().forEach { device ->
+                if (!prefs.contains("favourites_${device.id}")) favourites(device.id, FavouriteApps.all)
+            }
+            prefs.edit().putBoolean("editable_favourites_v1", true).apply()
+        }
+    }
     var selected: String
         get() = prefs.getString("selected", "").orEmpty()
         set(value) { prefs.edit().putString("selected", value).apply() }
     var haptics: Boolean
         get() = prefs.getBoolean("haptics", true)
         set(value) { prefs.edit().putBoolean("haptics", value).apply() }
+    var automaticKeyboard: Boolean
+        get() = prefs.getBoolean("automatic_keyboard", true)
+        set(value) { prefs.edit().putBoolean("automatic_keyboard", value).apply() }
     fun devices(): List<TvDevice> = runCatching {
         val array = JSONArray(prefs.getString("devices", "[]"))
         (0 until array.length()).map { i -> array.getJSONObject(i).let {
@@ -44,6 +56,7 @@ class DeviceStore(context: Context) {
         write(devices().filterNot { it.id == id })
         if (selected == id) selected = devices().firstOrNull()?.id.orEmpty()
         prefs.edit().remove("tests_$id").apply()
+        prefs.edit().remove("favourites_$id").apply()
     }
     private fun write(devices: List<TvDevice>) {
         val array = JSONArray()
@@ -56,5 +69,28 @@ class DeviceStore(context: Context) {
     fun testResult(id: String, name: String, value: String) {
         val json = testResults(id).put(name, value)
         prefs.edit().putString("tests_$id", json.toString()).apply()
+    }
+    fun favourites(id: String): List<FavouriteApp> {
+        val stored = prefs.getString("favourites_$id", null) ?: return emptyList()
+        return runCatching {
+            val array = JSONArray(stored)
+            (0 until array.length()).mapNotNull { index ->
+                val json = array.optJSONObject(index)
+                if (json == null) FavouriteApps.find(array.optString(index))
+                else runCatching {
+                    val app = FavouriteApp(json.getString("id"), json.getString("name"), json.getString("link"))
+                    app.takeIf { it.id.isNotBlank() && it.name.isNotBlank() && FavouriteApps.validLink(it.link) }
+                }.getOrNull()
+            }.distinctBy { it.id }.take(12)
+        }.getOrDefault(emptyList())
+    }
+    fun favourites(id: String, apps: List<FavouriteApp>) {
+        require(apps.size <= 12)
+        val array = JSONArray()
+        apps.distinctBy { it.id }.forEach { app ->
+            require(app.id.isNotBlank() && app.name.isNotBlank() && app.name.length <= 40 && FavouriteApps.validLink(app.link))
+            array.put(JSONObject().put("id", app.id).put("name", app.name).put("link", app.link))
+        }
+        prefs.edit().putString("favourites_$id", array.toString()).apply()
     }
 }

@@ -6,8 +6,8 @@ android {
         applicationId = "uk.co.home.chromecastremote"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.1.2-prototype"
+        versionCode = 7
+        versionName = "0.2.3-prototype"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

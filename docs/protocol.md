@@ -1,6 +1,6 @@
 # Protocol research and implementation notes
 
-Research date: 13 November 2026. Initial owner testing reported a pairing failure in 0.1. The owner subsequently confirmed that 0.1.1 accepted the TV code, but remote startup failed. Version 0.1.2 corrects remote activation; navigation compatibility remains unproven on hardware.
+Research date: 13 November 2026. Initial owner testing reported a pairing failure in 0.1. The owner subsequently confirmed that 0.1.1 accepted the TV code, but remote startup failed. After the 0.1.2 activation correction, the owner confirmed basic remote use with both TVs on both the Galaxy S25 and Galaxy S22, plus reopening and phone Wi-Fi off/on recovery without re-pairing. TV sleep/restart/unavailability, optional controls, accessibility, and performance checks remain outstanding.
 
 ## Primary references
 
@@ -24,7 +24,11 @@ Framing: unsigned varint length followed by a protobuf payload. Messages are cap
 
 Polo: request (10), request acknowledgement (11), hexadecimal input encoding/options (20), configuration (30), acknowledgement (31), secret (40), secret acknowledgement (41). Version 2, status 200. The SHA-256 secret uses unsigned client modulus/exponent, server modulus/exponent, and the final two code bytes. The first code byte is checked locally before sending. Only a valid acknowledgement saves the TV certificate pin.
 
-Remote: configure (1), set active (2), error (3), ping request/response (8/9), short key injection (10), and optional power telemetry (40, named `RemoteStart` in the older schema). Feature negotiation intersects ping/key/volume metadata with the server bitmask. Readiness requires configuration followed by SetActive; the controller writes the activation reply before publishing Connected or accepting keys. The app does not request the power feature and must not wait for its telemetry. There is no automatic power toggle. Remote service metadata is displayed with connection timing when available.
+Remote: configure (1), set active (2), error (3), ping request/response (8/9), short key injection (10), and optional power telemetry (40, named `RemoteStart` in the older schema). Feature negotiation intersects ping/key/volume/app links (mask 579) with the server bitmask; IME adds bit 4 (mask 583). From 0.2.1, automatic keyboard mode requests IME for the foreground connection by default. Readiness requires configuration followed by SetActive; the controller writes the activation reply before publishing Connected or accepting keys. The app does not request the power feature and must not wait for its telemetry. There is no automatic power toggle. Remote service metadata is displayed with connection timing when available.
+
+Keyboard: current field/cursor data is decoded from fields 20, 22, and 23; hide/reset events clear the target. IME_BATCH_EDIT (21) includes the field ID and counter, selection edit (1), replace edit (2), or editor action (5). Offsets use Android UTF-16 units. From 0.2.1 the dialog mirrors the active TV editor in memory and coalesces changes at 120 ms intervals. Live replacement verifies the connection/focus and uses the latest counter and current full-field range. Own-change acknowledgements update counters without replacing newer optimistic text. Repeated metadata for the same field does not create a new focus. Phone/TV editor text is cleared on blur, closure, or backgrounding and is never persisted or added to reports. No blind text fallback is used.
+
+Favourite apps: APP_LINK (90) carries the app's VIEW URL without a package restriction or Play Store fallback. 0.2.1 stores arbitrary user-defined names, links, and order; the two earlier defaults are only migration data. SmartTube's corrected `vnd.youtube.launch://youtube.com` matches its root-request parser. Nuvio's working `nuvio://home` link is retained. Installed-app browsing is unavailable through this protocol; no TV helper is included, at the owner's request. See [0.2.1 notes](features-0.2.1.md).
 
 Normal remote sessions enforce the exact SHA-256 pin learned during pairing. The temporary pairing connection accepts a self-signed certificate because the visible code is the out-of-band authentication. Incorrect code syntax/checksum can be retried in the same pairing session. Transport/protocol errors close the session. Pairing can be cancelled by leaving the app or the dialog.
 
@@ -32,7 +36,7 @@ Normal remote sessions enforce the exact SHA-256 pin learned during pairing. The
 
 Protocol compatibility; Keystore-backed TLS client auth on both Samsung phones; behavior after TV service updates/reset; discovery after DHCP changes; deep sleep; HDMI-CEC vs infrared volume; mute; app-specific play/pause behavior. Connection timings measure transport setup, not visible key response latency. The phone UI does not infer success from socket writes.
 
-No hold-to-repeat until key repetition behavior is checked on all hardware combinations. No Cast SDK fallback because it cannot be assumed to supply navigation. The supported Google TV/Home phone remote remains an alternative if this prototype fails the compatibility gate.
+0.2.0 implements hold-to-repeat as repeated short taps with UI/session cancellation; no TV key is left in a held-down state. This behavior needs checking on both phones/TVs. No Cast SDK fallback is used for navigation. The supported Google TV/Home phone remote remains an alternative if compatibility fails.
 
 ## Pairing failure reported in 0.1
 

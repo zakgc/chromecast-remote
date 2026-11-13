@@ -2,11 +2,15 @@
 
 A small native Kotlin Android remote for two Chromecasts with Google TV. Built from the supplied plan for personal installation on a Galaxy S22 and S25. No account, advertising, analytics, cloud backend, or background service.
 
-**The owner confirms 0.1.2 works with both TVs on the Galaxy S25. Galaxy S22 testing is pending.** The plan requires actual phone/TV tests before proceeding with the full app. Individual controls, recovery scenarios, and performance still need recording in [the hardware checklist](docs/device-testing.md). Hold-to-repeat, keyboard, voice, power, input switching, and later features are intentionally deferred.
+**The owner reports that 0.2.1 works well**, following the SmartTube launch correction, automatic live keyboard, and editable/reorderable favourites. Baseline navigation, reopening, and Wi-Fi recovery were previously confirmed on both TVs from both phones. The owner declined a TV helper, so this app remains phone-only and cannot browse the TV's installed-app inventory. See [feature notes](docs/features-0.2.1.md). Voice, power, input switching, and a playback timeline remain outside this build.
+
+Build **0.2.3** removes the experimental Apps button and its checklist entry after the owner reported that it did not work. Back and Home retain their original two-button row. Existing pairings, settings, and favourite buttons are preserved.
+
+The [exported S25 report](docs/reports/2026-11-13-s25.md) confirms Guest Room TV discovery, pairing, navigation, isolated switching, reconnection, and play/pause; the owner subsequently confirmed the same functional results on Maria TV. The report records a 68 ms activity-layout estimate and a 587 ms connection sample for Guest Room TV only. Volume does not work in either TV setup even with the official Chromecast physical remotes, per the owner, so leave the app's volume/mute group disabled.
 
 ## Install and try
 
-1. Use [the updated test APK](outputs/HomeRemote-0.1.2-test.apk), or build using the instructions below.
+1. Use [the updated test APK](outputs/HomeRemote-0.2.3-test.apk), or build using the instructions below. Install over the current app to retain pairings.
 2. Copy the APK to each phone, open it, and allow installation from the app used to open it when Android asks. Samsung Auto Blocker or a managed-device policy may restrict installation; follow the phone's instructions. This APK is debug-signed for personal testing.
 3. Wake the Chromecast and connect the phone to the same home Wi-Fi. Open **Home Remote → Add a TV**. The app searches for Android TV Remote Service v2. You can also enter the TV's IP address from its network settings.
 4. Name the device and pair using the six-character code on the TV, including letters A–F. Add the second Chromecast. Repeat pairing independently on the other phone.
@@ -28,7 +32,7 @@ The setup helper generates the standard Gradle wrapper. With an existing Android
 Build outputs:
 
 - APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Convenient copy and checksum: `outputs/HomeRemote-0.1.2-test.apk` and `.apk.sha256`
+- Convenient copy and checksum: `outputs/HomeRemote-0.2.3-test.apk` and `.apk.sha256`
 - Unit test report: `app/build/reports/tests/testDebugUnitTest/index.html`
 - Android lint report: `app/build/reports/lint-results-debug.html`
 
@@ -53,7 +57,7 @@ See [the hardware test checklist](docs/device-testing.md) for the compatibility 
 
 The owner confirmed that 0.1.1 accepted the Guest Room TV's pairing code, but never showed Connected. The app incorrectly waited for an optional power-status message despite not requesting the power feature. Its own 12-second setup timer then closed the socket. Version 0.1.2 uses the TV's SetActive acknowledgement to complete remote setup, before allowing key commands. Power messages no longer control readiness. The two new protocol regression tests failed against 0.1.1 before this correction.
 
-Install **0.1.2 over the current app**, open Home Remote, and tap **Reconnect** if needed. Existing successful pairings are retained; the Guest Room TV does not need to be paired again for this fix. Error messages now distinguish local setup timeouts, failed setup, and an interrupted active connection. The version is displayed in the app header and exported test report.
+The latest APK includes this correction. Install it over the current app and tap **Reconnect** if needed. Existing successful pairings are retained. Error messages distinguish local setup timeouts, failed setup, and an interrupted active connection. The version is displayed in the app header and exported test report.
 
 ## Pairing correction in 0.1.1
 
@@ -63,9 +67,9 @@ If upgrading from the original 0.1 build, install the latest APK over the existi
 
 ## Validation completed
 
-- `testDebugUnitTest`: 29 checks passed — 11 protocol tests, 12 app/storage cases, and 6 TLS key-policy cases. Android-specific checks run on simulated API 26 and API 35.
+- `testDebugUnitTest`: 65 checks passed, covering the existing remote and pairing policy, automatic live editing, delayed echoes, field/session changes, search submission ordering, repeat cancellation, editable favourites and migration, and app-link messages. Android-specific checks run on simulated API 26 and API 35.
 - `lintDebug`: no issues found, with warnings treated as errors.
-- `assembleDebug`: successful; the 0.1.2 test APK is 897,770 bytes (about 0.86 MiB).
+- `assembleDebug`: successful; the 0.2.3 test APK is 928,690 bytes (about 0.89 MiB).
 - Android APK signature verification: each update uses the same signing certificate and a higher version code for installation over the previous test build.
 
 The app/storage tests exercise first use, disabled commands before connection, restoring selection, switching, per-device optional controls, persistence, removal, and untested-by-default reports. Protocol tests exercise framing, malformed input, handshake/capability negotiation, pings, key encoding, pairing-code hashing, and stale-command rejection. Key-policy tests verify the production key-generation settings and separate legacy/current aliases; they do not emulate hardware Keystore or a native Android TLS handshake. The new policy checks failed against the original configuration before the correction. Retesting encrypted pairing on the owner's phone/TV remains required.

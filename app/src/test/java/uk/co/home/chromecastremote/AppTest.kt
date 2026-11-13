@@ -43,6 +43,7 @@ class AppTest {
         val app = launch()
         val up = buttons(app).first { it.contentDescription == "Up" }
         assertFalse(up.isEnabled)
+        assertFalse(buttons(app).any { it.text == "Apps" })
         click(app, "+ Add a TV")
         assertTrue(buttons(app).any { it.text == "Add by IP address" })
         click(app, "← Remote")
@@ -115,5 +116,52 @@ class AppTest {
         assertEquals("new-pin", saved.first().fingerprint)
         assertEquals("other-pin", saved.last().fingerprint)
         assertEquals(1, saved.last().identityVersion)
+    }
+    @Test fun favouriteSelectionsAreSeparatePerTvAndSurviveReopeningTheStore() {
+        val living = TvDevice(name = "Living Room", host = "192.168.1.20")
+        val bedroom = TvDevice(name = "Bedroom", host = "192.168.1.21")
+        store.save(living); store.save(bedroom)
+        assertTrue(store.favourites(living.id).isEmpty())
+        store.favourites(living.id, listOf(FavouriteApps.all.first()))
+        store.favourites(bedroom.id, emptyList())
+        val reloaded = DeviceStore(RuntimeEnvironment.getApplication())
+        assertEquals(listOf("nuvio"), reloaded.favourites(living.id).map { it.id })
+        assertTrue(reloaded.favourites(bedroom.id).isEmpty())
+        assertEquals(Identity.CURRENT_VERSION, reloaded.devices().first().identityVersion)
+        reloaded.remove(living.id)
+        assertTrue(reloaded.favourites(living.id).isEmpty())
+    }
+    @Test fun favouriteButtonsAreVisibleButCannotLaunchBeforeConnecting() {
+        val device = TvDevice(name = "Living Room", host = "192.168.1.20")
+        store.save(device); store.favourites(device.id, FavouriteApps.all)
+        val app = launch()
+        assertFalse(buttons(app).first { it.text == "Nuvio" }.isEnabled)
+        assertFalse(buttons(app).first { it.text == "SmartTube" }.isEnabled)
+        assertFalse(buttons(app).first { it.text == "Keyboard" }.isEnabled)
+    }
+    @Test fun customFavouriteButtonsCanBeRenamedReorderedAndRemovedWithoutABuiltInCatalogue() {
+        val device = TvDevice(name = "Living Room", host = "192.168.1.20")
+        store.save(device)
+        val custom = FavouriteApp("custom", "My TV app", "my-tv-app://home")
+        val other = FavouriteApp("another", "Another app", "another-app://start")
+        store.favourites(device.id, listOf(custom, other))
+        store.favourites(device.id, listOf(other, custom.copy(name = "Renamed", link = "my-tv-app://search")))
+        val saved = DeviceStore(RuntimeEnvironment.getApplication()).favourites(device.id)
+        assertEquals(listOf("Another app", "Renamed"), saved.map { it.name })
+        assertEquals("my-tv-app://search", saved.last().link)
+        store.favourites(device.id, saved.take(1))
+        assertEquals(listOf(other), store.favourites(device.id))
+    }
+    @Test fun upgradeRetainsOldFavouriteChoicesAndCorrectsTheSmartTubeRootLink() {
+        val context = RuntimeEnvironment.getApplication()
+        val prefs = context.getSharedPreferences("home_remote", Context.MODE_PRIVATE)
+        val device = TvDevice(name = "Living Room", host = "192.168.1.20")
+        store.save(device)
+        prefs.edit().remove("editable_favourites_v1").putString("favourites_${device.id}", "[\"smarttube\",\"nuvio\"]").commit()
+        val upgraded = DeviceStore(context)
+        assertEquals(listOf("smarttube", "nuvio"), upgraded.favourites(device.id).map { it.id })
+        assertEquals("vnd.youtube.launch://youtube.com", upgraded.favourites(device.id).first().link)
+        assertEquals(device, upgraded.devices().single())
+        assertTrue(upgraded.automaticKeyboard)
     }
 }

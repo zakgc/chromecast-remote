@@ -10,9 +10,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Build or validation failed.' }
     $output = Join-Path $root 'outputs'
     New-Item -ItemType Directory -Force $output | Out-Null
-    $package = Join-Path $output 'HomeRemote-0.1.2-test.apk'
+    $package = Join-Path $output 'HomeRemote-0.2.3-test.apk'
     Copy-Item -LiteralPath "$root/app/build/outputs/apk/debug/app-debug.apk" -Destination $package -Force
     $checksum = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
-    Set-Content -LiteralPath "$package.sha256" -Value "$checksum  HomeRemote-0.1.2-test.apk" -Encoding ascii
+    Set-Content -LiteralPath "$package.sha256" -Value "$checksum  HomeRemote-0.2.3-test.apk" -Encoding ascii
     Write-Host "Test app ready: $package"
 } finally { Pop-Location }

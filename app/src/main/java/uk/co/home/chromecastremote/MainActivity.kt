@@ -30,8 +30,10 @@ import android.widget.TextView
 import android.widget.Toast
 import uk.co.home.chromecastremote.protocol.Identity
 import uk.co.home.chromecastremote.protocol.PairingSession
+import uk.co.home.chromecastremote.protocol.RemoteProtocol
 import java.io.File
 import java.util.concurrent.Executors
+import java.util.UUID
 
 class MainActivity : Activity() {
     private val ink = Color.rgb(237, 244, 239)
@@ -49,6 +51,11 @@ class MainActivity : Activity() {
     private var detailView: TextView? = null
     private val tabs = mutableListOf<Pair<String, Button>>()
     private val controls = mutableListOf<Pair<Button, Int>>()
+    private val appButtons = mutableListOf<Button>()
+    private lateinit var repeatPress: HoldToRepeat
+    private var keyboardDialog: TvKeyboardDialog? = null
+    private var suppressedKeyboardScope: String? = null
+    private var editingFavourites = false
     private val found = linkedMapOf<String, FoundTv>()
     private var discoveryMessage = "Search for a Chromecast on your home network."
     private var discoveryStatus: TextView? = null
@@ -71,6 +78,7 @@ class MainActivity : Activity() {
         store = DeviceStore(this)
         connectivity = getSystemService(ConnectivityManager::class.java)
         controller = RemoteController { state -> updateState(state) }
+        repeatPress = HoldToRepeat { controller.state.takeIf { it.connected }?.sessionId }
         discovery = Discovery(this, ::deviceFound) { message -> discoveryMessage = message; discoveryStatus?.text = message }
         scroll = ScrollView(this).apply { isFillViewport = true; setBackgroundColor(Color.rgb(17, 28, 27)); clipToPadding = false }
         body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(16), dp(22), dp(24)) }
@@ -93,13 +101,15 @@ class MainActivity : Activity() {
         super.onStart(); visible = true
         val request = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET).build()
         connectivity.registerNetworkCallback(request, networkCallback); registered = true
+        controller.keyboard(store.automaticKeyboard)
         controller.resume(selected(), hasLan())
         discovery.start()
     }
     override fun onStop() {
         visible = false
         if (registered) { connectivity.unregisterNetworkCallback(networkCallback); registered = false }
-        discovery.close(); cancelPairing(); controller.pause()
+        repeatPress.cancel(); discovery.close(); cancelPairing(); controller.pause()
+        keyboardDialog?.close(); keyboardDialog = null
         super.onStop()
     }
     override fun onDestroy() { controller.close(); pairingIo.shutdownNow(); super.onDestroy() }
@@ -130,7 +140,8 @@ class MainActivity : Activity() {
     }
     private fun LinearLayout.weighted(view: View) { addView(view, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) }) }
     private fun reset(title: String, subtitle: String) {
-        body.removeAllViews(); tabs.clear(); controls.clear(); statusView = null; detailView = null; discoveryStatus = null; foundList = null
+        repeatPress.cancel()
+        body.removeAllViews(); tabs.clear(); controls.clear(); appButtons.clear(); statusView = null; detailView = null; discoveryStatus = null; foundList = null
         body.add(label("HOME REMOTE  /  ${BuildConfig.VERSION_NAME}", 12f, accent))
         body.add(label(title, 32f).apply { typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
         body.add(label(subtitle, 15f, muted))
@@ -173,6 +184,23 @@ class MainActivity : Activity() {
             weighted(remoteButton("Vol +", 24).apply { contentDescription = "Volume up" })
         })
         if (device?.playbackVerified == true) body.add(remoteButton("Play / pause", 85))
+        body.add(button("Keyboard") { showKeyboard() }.apply { isEnabled = device?.paired == true })
+        if (device != null) {
+            body.add(label("Favourite apps", 21f))
+            store.favourites(device.id).chunked(2).forEach { pair ->
+                val favouriteRow = row()
+                pair.forEach { app ->
+                    val launch = button(app.name) {
+                        repeatPress.cancel()
+                        if (controller.launchApp(app)) toast("Opening ${app.name} on ${device.name}…")
+                        else toast("Connect to a TV that supports app shortcuts first.")
+                    }
+                    appButtons.add(launch); favouriteRow.weighted(launch)
+                }
+                body.add(favouriteRow)
+            }
+            body.add(button("Manage favourite apps") { chooseFavourites(device) })
+        }
         body.add(button("Reconnect") { controller.select(selected()) })
         body.add(button("Devices & setup") { showDevices() })
         body.add(button("Test this setup") { showTests() })
@@ -187,12 +215,22 @@ class MainActivity : Activity() {
             }
         }
         controls.add(view to key)
+        if (key in 19..22) repeatPress.attach(view)
         return view
     }
     private fun updateState(state: RemoteState) {
+        if (!state.connected) repeatPress.cancel()
+        keyboardDialog?.update(state)
+        if (state.textTarget == null) suppressedKeyboardScope = null
+        val scope = keyboardScope(state)
+        if (visible && screen == "remote" && !editingFavourites && store.automaticKeyboard && keyboardDialog == null && scope != null && scope != suppressedKeyboardScope) showKeyboard()
         statusView?.text = state.label
         detailView?.text = state.details
         controls.forEach { (button, _) -> button.isEnabled = state.connected; button.alpha = if (state.connected) 1f else 0.35f }
+        appButtons.forEach { button ->
+            button.isEnabled = state.connected && state.features and RemoteProtocol.APP_LINKS != 0
+            button.alpha = if (button.isEnabled) 1f else 0.35f
+        }
         tabs.forEach { (id, button) ->
             val active = id == selected()?.id
             val device = store.devices().firstOrNull { it.id == id }
@@ -202,6 +240,78 @@ class MainActivity : Activity() {
             button.isSelected = active
             button.contentDescription = "${device?.name}, ${if (active) "selected, ${state.label}" else "tap to switch"}"
         }
+    }
+    private fun keyboardScope(state: RemoteState): String? = state.textTarget?.takeIf { state.connected }?.let {
+        "${state.deviceId}:${state.sessionId}:${it.fieldId}:${it.focusVersion}"
+    }
+    private fun showKeyboard() {
+        val device = selected() ?: return
+        if (keyboardDialog != null) return
+        repeatPress.cancel()
+        lateinit var panel: TvKeyboardDialog
+        panel = TvKeyboardDialog(this, device, controller, { store.automaticKeyboard }) {
+            if (keyboardDialog === panel) {
+                suppressedKeyboardScope = panel.lastBinding
+                keyboardDialog = null
+                val next = keyboardScope(controller.state)
+                if (visible && screen == "remote" && !editingFavourites && store.automaticKeyboard && next != null && next != suppressedKeyboardScope) showKeyboard()
+            }
+        }
+        keyboardDialog = panel
+        panel.show()
+    }
+    private fun chooseFavourites(device: TvDevice) {
+        editingFavourites = true
+        val apps = store.favourites(device.id)
+        val dialog = AlertDialog.Builder(this).setTitle("Favourite apps · ${device.name}")
+            .setItems((apps.map { it.name } + "+ Add an app").toTypedArray()) { _, index ->
+                if (index == apps.size) editFavourite(device, null) else favouriteActions(device, apps[index])
+            }.setNegativeButton("Done") { _, _ -> editingFavourites = false; showRemote() }.create()
+        dialog.setOnCancelListener { editingFavourites = false }
+        dialog.show()
+    }
+    private fun favouriteActions(device: TvDevice, app: FavouriteApp) {
+        val dialog = AlertDialog.Builder(this).setTitle(app.name)
+            .setItems(arrayOf("Edit name or launch link", "Move earlier", "Move later", "Remove button")) { _, action ->
+                if (action == 0) { editFavourite(device, app); return@setItems }
+                val apps = store.favourites(device.id).toMutableList()
+                val index = apps.indexOfFirst { it.id == app.id }
+                if (index >= 0) when (action) {
+                    1 -> if (index > 0) { apps.removeAt(index); apps.add(index - 1, app) }
+                    2 -> if (index < apps.lastIndex) { apps.removeAt(index); apps.add(index + 1, app) }
+                    3 -> apps.removeAt(index)
+                }
+                store.favourites(device.id, apps)
+                showRemote(); chooseFavourites(device)
+            }.setNegativeButton("Back") { _, _ -> chooseFavourites(device) }.create()
+        dialog.setOnCancelListener { editingFavourites = false }
+        dialog.show()
+    }
+    private fun editFavourite(device: TvDevice, app: FavouriteApp?) {
+        if (app == null && store.favourites(device.id).size >= 12) { toast("You can save up to 12 buttons per TV."); chooseFavourites(device); return }
+        val form = column().apply { setPadding(dp(20), dp(8), dp(20), 0) }
+        val name = EditText(this).apply { hint = "Button name"; setSingleLine(); setText(app?.name.orEmpty()); filters = arrayOf(InputFilter.LengthFilter(40)) }
+        val link = EditText(this).apply { hint = "App launch link"; setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI; setText(app?.link.orEmpty()); filters = arrayOf(InputFilter.LengthFilter(2048)) }
+        form.add(name); form.add(link)
+        val dialog = AlertDialog.Builder(this).setTitle(if (app == null) "Add favourite app" else "Edit favourite app")
+            .setMessage("Use a launch link supported by the TV app. Installed-app browsing is unavailable through this connection.")
+            .setView(form).setNegativeButton("Cancel") { _, _ -> chooseFavourites(device) }.setPositiveButton("Save", null).create()
+        dialog.setOnCancelListener { editingFavourites = false }
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val title = name.text.toString().trim()
+                val url = link.text.toString().trim()
+                if (title.isEmpty()) { name.error = "Enter a button name"; return@setOnClickListener }
+                if (!FavouriteApps.validLink(url)) { link.error = "Enter a supported app launch link, for example nuvio://home"; return@setOnClickListener }
+                val updated = FavouriteApp(app?.id ?: UUID.randomUUID().toString(), title, url)
+                val apps = store.favourites(device.id).toMutableList()
+                val index = apps.indexOfFirst { it.id == updated.id }
+                if (index >= 0) apps[index] = updated else apps.add(updated)
+                store.favourites(device.id, apps); dialog.dismiss()
+                showRemote(); chooseFavourites(device)
+            }
+        }
+        dialog.show()
     }
     private fun showDevices() {
         screen = "devices"
@@ -230,6 +340,10 @@ class MainActivity : Activity() {
         renderFound()
         if (store.devices().size < 2) body.add(button("Add by IP address") { editDevice(null) })
         body.add(CheckBox(this).apply { setText(R.string.haptic_setting); textSize = 16f; setTextColor(ink); minHeight = dp(56); isChecked = store.haptics; setOnCheckedChangeListener { _, enabled -> store.haptics = enabled } })
+        body.add(CheckBox(this).apply {
+            setText(R.string.automatic_keyboard); textSize = 16f; setTextColor(ink); minHeight = dp(56); isChecked = store.automaticKeyboard
+            setOnCheckedChangeListener { _, enabled -> store.automaticKeyboard = enabled; suppressedKeyboardScope = null; controller.keyboard(enabled) }
+        })
         body.add(button("Connection help") { help() })
         body.add(label("This test build uses the unofficial Android TV remote protocol. A Google TV update may affect compatibility. Pairing keys stay protected on this phone. No analytics or sign-in.", 14f, muted))
     }
@@ -356,7 +470,7 @@ class MainActivity : Activity() {
             setOnCheckedChangeListener { _, value -> store.devices().firstOrNull { it.id == device.id }?.let { store.save(it.copy(playbackVerified = value)) } }
         })
         body.add(label("Compatibility record", 24f))
-        val checks = listOf("Discovery", "Pairing", "Up / Down / Left / Right", "Select", "Back", "Home", "Switching: only selected TV responds", "Reopen: reconnect without pairing", "Sleep and wake", "TV restart", "Wi-Fi off and back on", "Volume and mute", "Play / pause", "Large text and TalkBack")
+        val checks = listOf("Discovery", "Pairing", "Up / Down / Left / Right", "Select", "Back", "Home", "Switching: only selected TV responds", "Reopen: reconnect without pairing", "Sleep and wake", "TV restart", "Wi-Fi off and back on", "Volume and mute", "Play / pause", "Hold to repeat: stops on release / switch", "Keyboard: insert / delete / enter", "Favourite: Nuvio", "Favourite: SmartTube", "Large text and TalkBack")
         checks.forEach { check ->
             val result = store.testResults(device.id).optString(check, "Not tested")
             body.add(button("$check\n$result") {
@@ -379,6 +493,7 @@ class MainActivity : Activity() {
                 val results = store.testResults(device.id)
                 results.keys().forEach { key -> appendLine("$key: ${results.getString(key)}") }
                 appendLine("Volume verified=${device.volumeVerified}; playback verified=${device.playbackVerified}")
+                appendLine("Favourite apps: ${store.favourites(device.id).joinToString { it.name }}")
             }
             appendLine("\nUnrecorded checks remain untested. No pairing secrets included.")
         }

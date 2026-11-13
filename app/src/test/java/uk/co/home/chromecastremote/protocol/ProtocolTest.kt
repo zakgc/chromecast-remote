@@ -47,10 +47,10 @@ class ProtocolTest {
         val protocol = RemoteProtocol()
         assertFalse(protocol.ready)
         val reply = protocol.receive(Wire.bytes(1, Wire.number(1, 1023)))!!
-        assertEquals(67, Wire.parse(reply).nested(1).num(1))
+        assertEquals(579, Wire.parse(reply).nested(1).num(1))
         assertFalse(protocol.ready)
         val active = protocol.receive(Wire.bytes(2, Wire.number(1, 1023)))!!
-        assertEquals(67, Wire.parse(active).nested(2).num(1))
+        assertEquals(579, Wire.parse(active).nested(2).num(1))
         assertTrue(protocol.ready)
         // Power telemetry may report false while asleep; it does not change channel readiness.
         protocol.receive(Wire.bytes(40, Wire.number(1, 0)))
