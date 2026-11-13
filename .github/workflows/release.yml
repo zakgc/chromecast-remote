@@ -1,0 +1,78 @@
+name: Release Android APK
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check release inputs and restore signing key
+        env:
+          ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if ($env:GITHUB_REF_NAME -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+              throw 'Release tags must look like v1.0.0.'
+          }
+          $config = Get-Content app/build.gradle.kts -Raw
+          $version = [regex]::Match($config, 'versionName\s*=\s*"([^"]+)"').Groups[1].Value
+          if ($env:GITHUB_REF_NAME -cne "v$version") {
+              throw 'Tag must match versionName in app/build.gradle.kts.'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:ANDROID_DEBUG_KEYSTORE_BASE64)) {
+              throw 'Add the ANDROID_DEBUG_KEYSTORE_BASE64 repository secret before releasing.'
+          }
+          New-Item -ItemType Directory -Force .tools/android-user | Out-Null
+          $keyPath = Join-Path $PWD '.tools/android-user/debug.keystore'
+          [IO.File]::WriteAllBytes($keyPath, [Convert]::FromBase64String($env:ANDROID_DEBUG_KEYSTORE_BASE64))
+
+      - name: Install build tools
+        run: ./scripts/setup.ps1 -AcceptAndroidLicenses
+
+      - name: Test, lint and build APK
+        run: ./scripts/build.ps1 -ReleaseTag $env:GITHUB_REF_NAME
+
+      - name: Verify APK signing certificate
+        run: |
+          $env:JAVA_HOME = Join-Path $PWD '.tools/jdk'
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $signature = & ./.tools/android-sdk/build-tools/35.0.0/apksigner.bat verify --print-certs "outputs/ChromecastRemote-$version.apk"
+          if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed.' }
+          $expected = 'Signer #1 certificate SHA-256 digest: 6323399252364698c4f064519301fba40a21cd13779c04ef5cd1402b953b3226'
+          if ($signature -cnotcontains $expected) {
+              throw 'Signing key differs from the existing app. Release stopped to preserve update compatibility.'
+          }
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $apk = "outputs/ChromecastRemote-$version.apk"
+          gh release create $env:GITHUB_REF_NAME $apk "$apk.sha256" --verify-tag --generate-notes --title "Chromecast Remote $version"
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publishing failed.' }
+
+      - name: Remove signing key from runner
+        if: always()
+        run: |
+          if (Test-Path -LiteralPath .tools/android-user/debug.keystore) {
+              Remove-Item -LiteralPath .tools/android-user/debug.keystore -Force
+          }
