@@ -1,4 +1,5 @@
 <resources>
+    <string name="app_name">Chromecast Remote</string>
     <string name="enter_on_tv">Enter / search on TV</string>
     <string name="keyboard_connecting">Connecting the keyboard…</string>
     <string name="keyboard_unsupported">This TV did not offer phone keyboard input.</string>

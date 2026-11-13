@@ -1,18 +1,18 @@
-# Home Remote — compatibility prototype
+# Chromecast Remote — compatibility prototype
 
 A small native Kotlin Android remote for two Chromecasts with Google TV. Built from the supplied plan for personal installation on a Galaxy S22 and S25. No account, advertising, analytics, cloud backend, or background service.
 
 **The owner reports that 0.2.1 works well**, following the SmartTube launch correction, automatic live keyboard, and editable/reorderable favourites. Baseline navigation, reopening, and Wi-Fi recovery were previously confirmed on both TVs from both phones. The owner declined a TV helper, so this app remains phone-only and cannot browse the TV's installed-app inventory. See [feature notes](docs/features-0.2.1.md). Voice, power, input switching, and a playback timeline remain outside this build.
 
-Build **0.3.3** applies the approved remote preview: a navigation circle up to 340dp across, a square Settings button matching the device selector height, continuously scrolling single-line device names when they overflow, and a two-arrow refresh symbol. The circle adapts to narrower or shorter phones while keeping the bottom controls visible. The existing Back, Home and Play / pause icons are unchanged. Existing pairings, preferences and favourites are preserved.
+Build **0.3.4** names the app **Chromecast Remote** in Android, TV pairing and connection metadata. It retains saved TVs, pairings, preferences and favourites. It also includes the flat launcher icon and the approved remote preview from 0.3.3: a navigation circle up to 340dp across, a square Settings button matching the device selector height, continuously scrolling single-line device names when they overflow, and a two-arrow refresh symbol. The circle adapts to narrower or shorter phones while keeping the bottom controls visible. The existing Back, Home and Play / pause icons are unchanged.
 
 The [exported S25 report](docs/reports/2026-11-13-s25.md) confirms Guest Room TV discovery, pairing, navigation, isolated switching, reconnection, and play/pause; the owner subsequently confirmed the same functional results on Maria TV. The report records a 68 ms activity-layout estimate and a 587 ms connection sample for Guest Room TV only. Volume does not work in either TV setup even with the official Chromecast physical remotes, per the owner, so volume and mute are omitted from the app.
 
 ## Install and try
 
-1. Use [the updated test APK](outputs/HomeRemote-0.3.3-test.apk), or build using the instructions below. Install over the current app to retain pairings.
+1. Use [the updated test APK](outputs/ChromecastRemote-0.3.4-test.apk), or build using the instructions below. Install over the current app to retain pairings.
 2. Copy the APK to each phone, open it, and allow installation from the app used to open it when Android asks. Samsung Auto Blocker or a managed-device policy may restrict installation; follow the phone's instructions. This APK is debug-signed for personal testing.
-3. Wake the Chromecast and connect the phone to the same home Wi-Fi. Open **Home Remote → Add a TV**, or **Settings → Manage TVs** for an existing setup. The app searches for Android TV Remote Service v2. You can also enter the TV's IP address from its network settings.
+3. Wake the Chromecast and connect the phone to the same home Wi-Fi. Open **Chromecast Remote → Add a TV**, or **Settings → Manage TVs** for an existing setup. The app searches for Android TV Remote Service v2. You can also enter the TV's IP address from its network settings.
 4. Name the device and pair using the six-character code on the TV, including letters A–F. Add the second Chromecast. Repeat pairing independently on the other phone.
 5. Use the main remote for navigation, playback, keyboard input and favourite apps. Settings contains TV management, vibration and automatic-keyboard preferences, and connection help.
 
@@ -31,7 +31,7 @@ The setup helper generates the standard Gradle wrapper. With an existing Android
 Build outputs:
 
 - APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Convenient copy and checksum: `outputs/HomeRemote-0.3.3-test.apk` and `.apk.sha256`
+- Convenient copy and checksum: `outputs/ChromecastRemote-0.3.4-test.apk` and `.apk.sha256`
 - Unit test report: `app/build/reports/tests/testDebugUnitTest/index.html`
 - Android lint report: `app/build/reports/lint-results-debug.html`
 
@@ -66,9 +66,9 @@ If upgrading from the original 0.1 build, install the latest APK over the existi
 
 ## Validation completed
 
-- `testDebugUnitTest`: 78 checks cover the existing protocol and storage behavior, playback visibility, TV selection, settings persistence, vibration requests and preferences, in-place favourite paging, compact/regular layout fit, large-text scrolling, centred direction glyphs, circular-pad hold routing popup editing flows and spacing, first-measure screen fit, square settings alignment, centred settings glyphs and overflow-name animation/lifecycle behavior. Android-specific checks run on simulated API 26 and API 35; design checks render with API 35 native graphics. Physical vibration still needs to be checked on the phone.
+- `testDebugUnitTest`: 79 checks cover the existing protocol and storage behavior, playback visibility, TV selection, settings persistence, vibration requests and preferences, in-place favourite paging, compact/regular layout fit, large-text scrolling, centred direction glyphs, circular-pad hold routing popup editing flows and spacing, first-measure screen fit, square settings alignment, centred settings glyphs and overflow-name animation/lifecycle behavior. Android-specific checks run on simulated API 26 and API 35; design checks render with API 35 native graphics. Physical vibration still needs to be checked on the phone.
 - `lintDebug`: no issues found, with warnings treated as errors.
-- `assembleDebug`: produces the 0.3.3 test APK using the existing signing key and a higher version code for updating the installed app.
+- `assembleDebug`: produces the 0.3.4 test APK using the existing signing key and a higher version code for updating the installed app.
 - Android APK signature verification: each update uses the same signing certificate and a higher version code for installation over the previous test build.
 
 The app/storage tests exercise first use, disabled commands before connection, restoring selection, switching, per-device optional controls, persistence, removal, preserved compatibility records, and absence of the removed setup-testing screen. Protocol tests exercise framing, malformed input, handshake/capability negotiation, pings, key encoding, pairing-code hashing, and stale-command rejection. Key-policy tests verify the production key-generation settings and separate legacy/current aliases; they do not emulate hardware Keystore or a native Android TLS handshake. The new policy checks failed against the original configuration before the correction. Retesting encrypted pairing on the owner's phone/TV remains required.

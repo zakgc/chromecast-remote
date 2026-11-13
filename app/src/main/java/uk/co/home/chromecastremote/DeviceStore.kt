@@ -19,6 +19,7 @@ data class TvDevice(
 ) { val paired get() = fingerprint.isNotEmpty() }
 
 class DeviceStore(context: Context) {
+    // Keep the original storage name so app-name changes retain saved TVs and preferences.
     private val prefs = context.getSharedPreferences("home_remote", Context.MODE_PRIVATE)
     init {
         if (!prefs.getBoolean("editable_favourites_v1", false)) {

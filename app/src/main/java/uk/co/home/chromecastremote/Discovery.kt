@@ -24,7 +24,7 @@ class Discovery(context: Context, private val found: (FoundTv) -> Unit, private 
     fun start() {
         close()
         val token = generation
-        lock = wifi.createMulticastLock("home-remote-discovery").apply { setReferenceCounted(false); acquire() }
+        lock = wifi.createMulticastLock("chromecast-remote-discovery").apply { setReferenceCounted(false); acquire() }
         val discovery = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(type: String) { main.post { if (token == generation) status("Looking on your home network…") } }
             override fun onServiceFound(info: NsdServiceInfo) { main.post { if (token == generation) { queue.add(info); resolveNext(token) } } }

@@ -39,7 +39,7 @@ class RemoteProtocol(private val keyboardEnabled: Boolean = false) {
                 deviceDescription = listOf(info.string(2), info.string(1), info.string(6)).filter { it.isNotEmpty() }.joinToString(" · ")
                 configured = true
                 Wire.bytes(1, Wire.message(Wire.number(1, features), Wire.bytes(2, Wire.message(
-                    Wire.number(3, 1), Wire.text(4, "1"), Wire.text(5, "atvremote"), Wire.text(6, BuildConfig.VERSION_NAME)
+                    Wire.number(3, 1), Wire.text(4, "1"), Wire.text(5, "Chromecast Remote"), Wire.text(6, BuildConfig.VERSION_NAME)
                 ))))
             }
             fields.any { it.number == 2 } -> {

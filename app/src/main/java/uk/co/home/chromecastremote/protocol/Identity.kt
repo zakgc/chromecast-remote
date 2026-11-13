@@ -56,6 +56,7 @@ class Identity(private val id: String, version: Int = CURRENT_VERSION) {
     }
     companion object {
         const val CURRENT_VERSION = 2
+        // Keep these aliases stable so app-name changes retain existing TV pairings.
         internal fun aliasFor(id: String, version: Int): String = when (version) {
             1 -> "home_remote_$id"
             CURRENT_VERSION -> "home_remote_tls2_$id"
@@ -68,7 +69,7 @@ class Identity(private val id: String, version: Int = CURRENT_VERSION) {
                 .setKeySize(2048).setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA384, KeyProperties.DIGEST_SHA512)
                 .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1, KeyProperties.SIGNATURE_PADDING_RSA_PSS)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setCertificateSubject(X500Principal("CN=HomeRemote-$id"))
+                .setCertificateSubject(X500Principal("CN=Chromecast Remote-$id"))
                 .setCertificateSerialNumber(BigInteger(128, SecureRandom()))
                 .setCertificateNotBefore(Date(System.currentTimeMillis() - 86400000L))
                 .setCertificateNotAfter(Date(System.currentTimeMillis() + 10L * 365 * 86400000L)).build()

@@ -99,7 +99,7 @@ class RemoteDesignTest {
             assertEquals("Settings matches the device selector height", selector.height, settings.height)
             assertTrue("Settings must have a visible gap from the device selector", settings.left - selector.right >= 12)
             assertEquals(selector.top + selector.height / 2f, settings.top + settings.height / 2f, 1f)
-            assertFalse(views(body).filterIsInstance<TextView>().any { it.text.contains("HOME REMOTE", true) })
+            assertFalse(views(body).filterIsInstance<TextView>().any { it.text.contains(app.getString(R.string.app_name), true) })
         }
     }
     @Test fun settingsFitsNormalPhoneAndSwitchesSaveImmediately() {

@@ -1,4 +1,4 @@
-# Home Remote design concepts
+# Chromecast Remote design concepts
 
 ## Current revision: v3 — grey, navy and blue
 
@@ -49,7 +49,7 @@ Earlier concepts remain available as [regular v1](home-remote-regular.png), [com
 ### Regular v3
 
 Edit the referenced regular-phone Android app design, preserving its polished dark grey, navy and blue palette, device frame, typography, circular directional pad and bottom-aligned primary controls. Make exactly these design changes:
-1. Remove the remote-shaped branding icon and the words "Home Remote" from the top completely. Remove their dedicated branding row and reclaim its vertical space. Keep access to settings as a small gear aligned at the right side of the device-selector area, integrated cleanly beside the TV selector, without its own empty header row. Android OS status bar remains.
+1. Remove the remote-shaped branding icon and the words "Chromecast Remote" from the top completely. Remove their dedicated branding row and reclaim its vertical space. Keep access to settings as a small gear aligned at the right side of the device-selector area, integrated cleanly beside the TV selector, without its own empty header row. Android OS status bar remains.
 2. Favourite app buttons must be TEXT ONLY. Remove the blue N monogram and the SmartTube play-logo icon from the favourites. Two short equal dark charcoal buttons with ONLY centered text "Nuvio" and "SmartTube". No logos, glyphs, initials, decorative marks or replacement icons inside these two buttons. Keep "Favourite apps" title and "Edit".
 Reflow the top section neatly: OS status bar, device selector "Guest Room TV" with Connected blue dot, small reconnect arrow, dropdown chevron and settings access, then Favourite apps with text-only buttons, then Keyboard button. Do not leave a blank branding row.
 Keep the directional pad low in the LOWER HALF of the screen and keep Back, Home, Play / pause as the BOTTOMMOST control row above the gesture safe area. Reclaimed top space should become calm flexible space ABOVE the D-pad; don't lift the primary remote controls toward the top.
@@ -70,5 +70,5 @@ LOWER-HALF circular segmented navy D-pad with white up/down/left/right chevrons 
 BOTTOMMOST control row with icons and labels "Back", "Home", "Play / pause".
 Android gesture bar.
 
-Do not show the app title "Home Remote" ANYWHERE, no remote brand icon, no standalone app bar or empty reserved top header. Keep other functional icons including keyboard, gear and navigation. Colours #191C22 background, #252A33 surface, #172B49 navy pad, #79A9F5 blue centre/accent, #F1F4FA text. No green/mint. Retain matte refined tactile look and high text clarity. No extra features, footer, tabs or media card. All frequent controls remain physically close to the bottom.
+Do not show the app title "Chromecast Remote" ANYWHERE, no remote brand icon, no standalone app bar or empty reserved top header. Keep other functional icons including keyboard, gear and navigation. Colours #191C22 background, #252A33 surface, #172B49 navy pad, #79A9F5 blue centre/accent, #F1F4FA text. No green/mint. Retain matte refined tactile look and high text clarity. No extra features, footer, tabs or media card. All frequent controls remain physically close to the bottom.
 

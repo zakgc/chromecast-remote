@@ -4,7 +4,7 @@ Owner feedback on 0.2.0: Nuvio and hold-to-repeat work; SmartTube opens but show
 
 ## Automatic live keyboard
 
-While Home Remote is visible, selecting an editable TV text box now opens the phone keyboard automatically. The phone field shows the TV field's current text. Type, paste, move the phone cursor, or use the phone keyboard's Backspace; changes are sent after a short 120 ms pause without a Send button. The phone keyboard's Search/Enter action and the dialog's Search/Enter button wait for the latest edit before submitting the TV action.
+While Chromecast Remote is visible, selecting an editable TV text box now opens the phone keyboard automatically. The phone field shows the TV field's current text. Type, paste, move the phone cursor, or use the phone keyboard's Backspace; changes are sent after a short 120 ms pause without a Send button. The phone keyboard's Search/Enter action and the dialog's Search/Enter button wait for the latest edit before submitting the TV action.
 
 Closing with Done dismisses the phone keyboard for that TV field; it opens again when a different field is selected. **Devices & setup → Open phone keyboard automatically for TV text boxes** turns automatic opening off. The manual Keyboard button remains available. With automatic mode enabled, the input capability stays active for the foreground connection, avoiding the repeated reconnects required by 0.2.0. Disabling it restores the normal connection when the dialog closes.
 

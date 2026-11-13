@@ -59,7 +59,7 @@ Reported sample for S25 → Guest Room TV on 0.1.2: first-layout activity estima
 - Startup: record opening from cold and warm states, at least five trials each. The app's first-layout estimate is only an activity timing aid; use a recording or Android startup tools for the actual first visible frame. Target: usable remote displayed within 1 second, before connection finishes.
 - Connection/switching: read the connection time in the status detail, repeat ten times, and record median and worst. Observe whether the first key is accepted after Connected.
 - Key latency: use a video showing the finger tap and TV movement for ten presses; calculate elapsed frames divided by frame rate. Do not substitute socket-write time for TV response time.
-- Size: record APK size separately from installed app/data size in Android Settings → Apps → Home Remote → Storage.
+- Size: record APK size separately from installed app/data size in Android Settings → Apps → Chromecast Remote → Storage.
 - Battery: compare a controlled period in foreground and an hour with the app closed, noting phone battery settings and Wi-Fi conditions. Confirm no background service or persistent notification.
 - Final budgets for size, latency, connection time, and battery should be chosen after collecting the baseline.
 

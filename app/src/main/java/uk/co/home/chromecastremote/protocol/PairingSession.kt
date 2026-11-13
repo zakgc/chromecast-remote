@@ -21,7 +21,7 @@ class PairingSession(private val device: TvDevice) : Closeable {
         if (cancelled) { connection.close(); throw IOException("Pairing cancelled") }
         Identity.connect(connection, device.host, device.port + 1)
         peer = connection.session.peerCertificates.first() as X509Certificate
-        exchange(10, Wire.message(Wire.text(1, "atvremote"), Wire.text(2, "Home Remote · ${android.os.Build.MODEL}")), 11)
+        exchange(10, Wire.message(Wire.text(1, "atvremote"), Wire.text(2, "Chromecast Remote · ${android.os.Build.MODEL}")), 11)
         val encoding = Wire.message(Wire.number(1, 3), Wire.number(2, 6))
         exchange(20, Wire.message(Wire.bytes(1, encoding), Wire.number(3, 1)), 20)
         exchange(30, Wire.message(Wire.bytes(1, encoding), Wire.number(2, 1)), 31)
