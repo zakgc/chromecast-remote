@@ -14,7 +14,7 @@ Volume, mute, power, voice, input switching, installed-app browsing and a playba
 
 ## Install and pair
 
-1. Download `ChromecastRemote-1.0.0.apk` from [the 1.0.0 release](https://github.com/zakgc/chromecast-remote/releases/tag/v1.0.0) once published, or build it below.
+1. Download `ChromecastRemote-1.0.1.apk` from [the 1.0.1 release](https://github.com/zakgc/chromecast-remote/releases/tag/v1.0.1) once published, or build it below.
 2. Open the APK on the phone and allow installation from that source when Android asks. Install over the existing app to retain saved TVs, pairings, preferences and favourites. Updates must use the same signing key.
 3. Wake the Chromecast and connect the phone to the same home Wi-Fi. Tap **Add a TV**, or **Settings → Manage TVs** for an existing setup. If discovery fails, enter the TV's IP address from its network settings.
 4. Name the TV and pair using its six-character on-screen code, including letters A–F. Pair each phone independently.
@@ -48,7 +48,7 @@ Open the repository root in Android Studio for editing.
 Build outputs:
 
 - APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Versioned copy and checksum from the helper: `outputs/ChromecastRemote-1.0.0.apk` and `.apk.sha256`
+- Versioned copy and checksum from the helper: `outputs/ChromecastRemote-1.0.1.apk` and `.apk.sha256`
 - Unit test report: `app/build/reports/tests/testDebugUnitTest/index.html`
 - Android lint report: `app/build/reports/lint-results-debug.html`
 - Native screen and icon renders from tests: `app/build/outputs/design/`

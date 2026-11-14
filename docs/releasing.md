@@ -37,8 +37,8 @@ enabling this workflow.
 
 ## Publish a version
 
-1. In `app/build.gradle.kts`, set `versionName` (for example, `1.0.1`) and increase
-   `versionCode` (for example, from `13` to `14`). Every update needs a higher code.
+1. In `app/build.gradle.kts`, set `versionName` (currently `1.0.1`) and increase
+   `versionCode` (currently `14`). Every update needs a higher code.
 2. Commit and push the changes, including the release workflow on its first run.
 3. Tag that commit using the exact version with a `v` prefix, then push the tag:
 
@@ -47,16 +47,25 @@ enabling this workflow.
    git push origin v1.0.1
    ```
 
-For the first release, the app is already set to `1.0.0` with version code `13`,
-so use `v1.0.0` instead. Review progress under **Actions → Release Android APK**.
+Review progress under **Actions → Release Android APK**.
 When it succeeds, the download is on the repository's **Releases** page.
 These tags publish regular releases; prerelease suffixes are not supported.
 An existing release for the same tag is never overwritten. If publishing fails
 after a draft is created, inspect that draft before retrying.
 
+If a tag fails because it does not match `versionName`, rerunning the same tag
+will still build the old commit. Update the app version, commit and push it,
+then create a matching tag. To reuse a failed tag with no published release,
+replace it after committing the corrected version:
+
+```powershell
+git tag -f -a v1.0.1 -m "Chromecast Remote 1.0.1"
+git push --force origin refs/tags/v1.0.1
+```
+
 Local builds still work with `./scripts/build.ps1`. Filenames now follow the
 version in `app/build.gradle.kts` automatically. To check tag matching locally,
-run `./scripts/build.ps1 -ReleaseTag v1.0.0`.
+run `./scripts/build.ps1 -ReleaseTag v1.0.1`.
 
 ## References
 
