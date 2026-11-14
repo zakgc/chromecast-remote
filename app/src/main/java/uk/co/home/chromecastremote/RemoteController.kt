@@ -128,6 +128,16 @@ class RemoteController(private val changed: (RemoteState) -> Unit) : Closeable, 
     fun send(key: Int) {
         queue { RemoteProtocol.key(key) }
     }
+    fun holdSelect(sessionId: Long, pressed: Boolean): Boolean {
+        if (!state.connected || state.sessionId != sessionId) return false
+        val connection = current ?: return false
+        val queued = queue(expires = pressed) {
+            RemoteProtocol.key(23, if (pressed) RemoteProtocol.START_LONG else RemoteProtocol.END_LONG)
+        }
+        // A release must not expire or be silently dropped while the TV is holding OK.
+        if (!queued && !pressed) runCatching { connection.socket.close() }
+        return queued
+    }
     fun launchApp(app: FavouriteApp): Boolean {
         if (state.features and RemoteProtocol.APP_LINKS == 0) return false
         return queue { RemoteProtocol.appLink(app.link) }
@@ -140,13 +150,14 @@ class RemoteController(private val changed: (RemoteState) -> Unit) : Closeable, 
         if (state.sessionId != sessionId) { done(false, "The TV connection changed. Reopen the keyboard."); return }
         queue(done) { it.submitText(target) }
     }
-    private fun queue(done: ((Boolean, String) -> Unit)? = null, payload: (RemoteProtocol) -> ByteArray): Boolean {
+    private fun queue(done: ((Boolean, String) -> Unit)? = null, expires: Boolean = true, payload: (RemoteProtocol) -> ByteArray): Boolean {
         if (!state.connected) { done?.invoke(false, "The TV is not connected."); return false }
         val connection = current ?: return false
         val time = SystemClock.elapsedRealtime()
         try {
             writer.execute {
-                if (current !== connection || !gate.accepts(connection.token, time, SystemClock.elapsedRealtime())) {
+                if (current !== connection || connection.token != gate.generation ||
+                    (expires && !gate.accepts(connection.token, time, SystemClock.elapsedRealtime()))) {
                     main.post { done?.invoke(false, "The connection changed or the command expired. Nothing was replayed.") }
                     return@execute
                 }

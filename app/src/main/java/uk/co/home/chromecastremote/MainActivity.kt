@@ -50,6 +50,7 @@ class MainActivity : Activity() {
     private val appButtons = mutableListOf<Button>()
     private var favouritePage = 0
     private lateinit var repeatPress: HoldToRepeat
+    private lateinit var selectPress: HoldToSelect
     private lateinit var vibration: ButtonVibration
     private var keyboardDialog: TvKeyboardDialog? = null
     private var suppressedKeyboardScope: String? = null
@@ -76,6 +77,11 @@ class MainActivity : Activity() {
         connectivity = getSystemService(ConnectivityManager::class.java)
         controller = RemoteController { state -> updateState(state) }
         repeatPress = HoldToRepeat { controller.state.takeIf { it.connected }?.sessionId }
+        selectPress = HoldToSelect(
+            { controller.state.takeIf { it.connected }?.sessionId },
+            controller::holdSelect,
+            { vibration.tap() }
+        )
         discovery = Discovery(this, ::deviceFound) { message -> discoveryMessage = message; discoveryStatus?.text = message }
         scroll = RemoteViewport(this).apply { isFillViewport = true; setBackgroundColor(RemoteColors.background); clipToPadding = false }
         body = RemoteBody(this).apply { setPadding(dp(20), dp(12), dp(20), dp(16)) }
@@ -104,7 +110,7 @@ class MainActivity : Activity() {
     override fun onStop() {
         visible = false
         if (registered) { connectivity.unregisterNetworkCallback(networkCallback); registered = false }
-        repeatPress.cancel(); discovery.close(); cancelPairing(); controller.pause()
+        cancelPresses(); discovery.close(); cancelPairing(); controller.pause()
         keyboardDialog?.close(); keyboardDialog = null
         super.onStop()
     }
@@ -136,7 +142,7 @@ class MainActivity : Activity() {
     }
     private fun LinearLayout.weighted(view: View) { addView(view, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) }) }
     private fun clearScreen() {
-        repeatPress.cancel()
+        cancelPresses()
         body.pad = null
         body.removeAllViews(); tvStatuses.clear(); controls.clear(); appButtons.clear(); statusView = null; discoveryStatus = null; foundList = null
         scroll.scrollTo(0, 0)
@@ -162,7 +168,7 @@ class MainActivity : Activity() {
         selectorText.contentDescription = "Choose TV, ${device?.name ?: "no TV saved"}"
         selectorText.setOnClickListener { chooseTv() }
         selector.addView(selectorText, LinearLayout.LayoutParams(0, -2, 1f))
-        selector.addView(iconButton("Reconnect", "reconnect") { repeatPress.cancel(); controller.select(selected()) })
+        selector.addView(iconButton("Reconnect", "reconnect") { cancelPresses(); controller.select(selected()) })
         selector.addView(iconButton("Choose TV", "down") { chooseTv() })
         topBar.addView(selector, LinearLayout.LayoutParams(0, -2, 1f))
         topBar.addView(iconButton("Settings", "settings") { showSettings() }.apply {
@@ -182,7 +188,7 @@ class MainActivity : Activity() {
             val favourites = row()
             pages.getOrNull(favouritePage)?.forEach { app ->
                 val launch = button(app.name) {
-                    repeatPress.cancel()
+                    cancelPresses()
                     if (controller.launchApp(app)) toast("Opening ${app.name} on ${device.name}…")
                     else toast("Connect to a TV that supports app shortcuts first.")
                 }
@@ -214,8 +220,8 @@ class MainActivity : Activity() {
         val navigation = row()
         listOf(Triple("Back", 4, "back"), Triple("Home", 3, "home"), Triple("Play / pause", 85, "play"))
             .forEach { (title, key, glyph) ->
-                navigation.addView(remoteButton(title, key).apply {
-                    setCompoundDrawables(null, icon(glyph, 24), null, null); compoundDrawablePadding = dp(6)
+                navigation.addView(remoteButton("", key, direction = glyph, iconSize = 24).apply {
+                    contentDescription = title
                     setPadding(dp(6), dp(12), dp(6), dp(12))
                     textSize = 14f; minWidth = 0; minimumWidth = 0; minHeight = dp(80)
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { if (navigation.childCount > 0) leftMargin = dp(10) })
@@ -236,7 +242,7 @@ class MainActivity : Activity() {
     }
     private fun clearRipple() = RippleDrawable(ColorStateList.valueOf(Color.argb(65, 121, 169, 245)), null, background(Color.WHITE, 48))
     private fun chooseTv() {
-        repeatPress.cancel()
+        cancelPresses()
         val devices = store.devices()
         if (devices.isEmpty()) { showDevices(); return }
         AlertDialog.Builder(this).setTitle("Choose TV")
@@ -244,18 +250,24 @@ class MainActivity : Activity() {
                 store.selected = devices[index].id; favouritePage = 0; controller.select(devices[index]); dialog.dismiss(); showRemote()
             }.setNeutralButton("Manage TVs") { _, _ -> showDevices() }.setNegativeButton("Cancel", null).show()
     }
-    private fun remoteButton(title: String, key: Int, primary: Boolean = false, direction: String? = null): Button {
-        val view = button(title, primary, direction) {
+    private fun remoteButton(title: String, key: Int, primary: Boolean = false, direction: String? = null, iconSize: Int = 30): Button {
+        val view = button(title, primary, direction, iconSize) {
             if (controller.state.connected) {
                 controller.send(key)
             }
         }
         controls.add(view)
         if (key in 19..22) repeatPress.attach(view)
+        if (key == 23) selectPress.attach(view)
         return view
     }
+    private fun cancelPresses() {
+        repeatPress.cancel()
+        selectPress.cancel()
+    }
     private fun updateState(state: RemoteState) {
-        if (!state.connected) repeatPress.cancel()
+        if (!state.connected) cancelPresses()
+        selectPress.cancelIfSessionChanged()
         keyboardDialog?.update(state)
         if (state.textTarget == null) suppressedKeyboardScope = null
         val scope = keyboardScope(state)
@@ -357,7 +369,7 @@ class MainActivity : Activity() {
     private fun showKeyboard() {
         val device = selected() ?: return
         if (keyboardDialog != null) return
-        repeatPress.cancel()
+        cancelPresses()
         lateinit var panel: TvKeyboardDialog
         panel = TvKeyboardDialog(this, device, controller, { store.automaticKeyboard }) {
             if (keyboardDialog === panel) {

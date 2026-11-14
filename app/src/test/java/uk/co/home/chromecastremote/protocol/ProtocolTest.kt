@@ -43,6 +43,12 @@ class ProtocolTest {
         val fields = Wire.parse(RemoteProtocol.key(23)).nested(10)
         assertEquals(23, fields.num(1)); assertEquals(3, fields.num(2))
     }
+    @Test fun heldSelectUsesSeparatePressAndReleaseEvents() {
+        val press = Wire.parse(RemoteProtocol.key(23, RemoteProtocol.START_LONG)).nested(10)
+        val release = Wire.parse(RemoteProtocol.key(23, RemoteProtocol.END_LONG)).nested(10)
+        assertEquals(23, press.num(1)); assertEquals(1, press.num(2))
+        assertEquals(23, release.num(1)); assertEquals(2, release.num(2))
+    }
     @Test fun handshakeNegotiatesOnlySupportedFeaturesAndAnswersPing() {
         val protocol = RemoteProtocol()
         assertFalse(protocol.ready)

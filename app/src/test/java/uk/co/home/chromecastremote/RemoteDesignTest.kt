@@ -61,7 +61,7 @@ class RemoteDesignTest {
         measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY))
         layout(0, 0, width, height)
     }
-    private fun button(app: MainActivity, text: String) = views(root(app)).filterIsInstance<Button>().first { it.text.toString() == text }
+    private fun button(app: MainActivity, text: String) = views(root(app)).filterIsInstance<Button>().first { it.text.toString() == text || it.contentDescription == text }
     private fun settings(app: MainActivity) = views(root(app)).first { it.contentDescription == "Settings" }.performClick()
     private fun connectedState(app: MainActivity) {
         // Render a deterministic connected state without opening a real network connection.

@@ -5,7 +5,7 @@ A small native Kotlin Android remote for two Chromecasts with Google TV, made fo
 ## Features
 
 - Save and pair up to two TVs, discover them on local Wi-Fi, or add them by IP address.
-- Navigate with a circular directional pad, hold arrows to repeat, and use Back, Home and Play / pause.
+- Navigate with a circular directional pad, hold arrows to repeat, hold OK for app options, and use Back, Home and Play / pause.
 - Type in supported TV text fields with the automatic live phone keyboard, or open it manually.
 - Save up to 12 editable, ordered favourite app shortcuts per TV. Additional favourites page in place.
 - Adjust button vibration and automatic keyboard opening in Settings.

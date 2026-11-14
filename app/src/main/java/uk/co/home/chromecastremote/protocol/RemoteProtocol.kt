@@ -57,7 +57,10 @@ class RemoteProtocol(private val keyboardEnabled: Boolean = false) {
     companion object {
         const val IME = 4
         const val APP_LINKS = 512
-        fun key(code: Int) = Wire.bytes(10, Wire.message(Wire.number(1, code), Wire.number(2, 3)))
+        const val START_LONG = 1
+        const val END_LONG = 2
+        const val SHORT = 3
+        fun key(code: Int, direction: Int = SHORT) = Wire.bytes(10, Wire.message(Wire.number(1, code), Wire.number(2, direction)))
         fun appLink(url: String): ByteArray {
             require(url.isNotBlank() && url.length <= 2048)
             return Wire.bytes(90, Wire.text(1, url))
