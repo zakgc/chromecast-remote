@@ -16,10 +16,10 @@ object Wire {
     fun text(field: Int, value: String) = bytes(field, value.toByteArray(Charsets.UTF_8))
     fun message(vararg parts: ByteArray): ByteArray = parts.fold(byteArrayOf()) { result, part -> result + part }
     fun encodeVarint(value: Long): ByteArray {
-        require(value >= 0)
         val out = ByteArrayOutputStream()
         var remaining = value
-        while (remaining > 127) { out.write((remaining.toInt() and 127) or 128); remaining = remaining ushr 7 }
+        // Protobuf int32 negatives are sign-extended to a ten-byte varint.
+        while (remaining and -128L != 0L) { out.write((remaining.toInt() and 127) or 128); remaining = remaining ushr 7 }
         out.write(remaining.toInt())
         return out.toByteArray()
     }
@@ -28,7 +28,7 @@ object Wire {
         for (shift in 0..63 step 7) {
             val byte = input.read()
             if (byte < 0) throw EOFException("Connection closed")
-            if (shift == 63 && byte > 0) throw IOException("Varint overflow")
+            if (shift == 63 && byte > 1) throw IOException("Varint overflow")
             value = value or ((byte and 127).toLong() shl shift)
             if (byte and 128 == 0) return value
         }

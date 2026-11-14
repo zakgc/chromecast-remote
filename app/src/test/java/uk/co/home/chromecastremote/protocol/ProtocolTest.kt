@@ -14,6 +14,20 @@ import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPublicKey
 
 class ProtocolTest {
+    @Test fun signedInt32ValuesUseTenByteTwosComplementVarints() {
+        val minusOne = byteArrayOf(0x08) + ByteArray(9) { 0xff.toByte() } + byteArrayOf(0x01)
+        assertEquals(-1, Wire.parse(minusOne).num(1))
+        assertArrayEquals(minusOne, Wire.number(1, -1))
+        for (value in listOf(Int.MIN_VALUE, -2, 0, 127, 128, Int.MAX_VALUE)) {
+            assertEquals(value, Wire.parse(Wire.number(1, value)).num(1))
+        }
+    }
+    @Test fun acceptingSignedValuesDoesNotAllowNegativeLengthsOrOverflow() {
+        val negative = ByteArray(9) { 0xff.toByte() } + byteArrayOf(0x01)
+        assertThrows(IOException::class.java) { Wire.readFrame(ByteArrayInputStream(negative)) }
+        assertThrows(IOException::class.java) { Wire.parse(byteArrayOf(0x0a) + negative) }
+        assertThrows(IOException::class.java) { Wire.parse(byteArrayOf(0x08) + ByteArray(9) { 0xff.toByte() } + byteArrayOf(0x02)) }
+    }
     @Test fun fragmentedAndCoalescedFramesAreReadExactly() {
         val first = ByteArray(400) { (it % 251).toByte() }
         val second = byteArrayOf(1, 2, 3)

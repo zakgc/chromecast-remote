@@ -7,6 +7,27 @@ import uk.co.home.chromecastremote.protocol.Wire.num
 import uk.co.home.chromecastremote.protocol.Wire.string
 
 class KeyboardProtocolTest {
+    @Test fun signedEditorMetadataDoesNotInterruptTheRemoteConnection() {
+        val protocol = RemoteProtocol(true)
+        protocol.receive(Wire.bytes(1, Wire.number(1, 583)))
+        protocol.receive(Wire.bytes(2, byteArrayOf()))
+        // Encode the protobuf int32 wire form independently of our encoder:
+        // IME_FLAG_FORCE_ASCII | SEARCH and unavailable (-1) selection offsets.
+        val signedOptions = byteArrayOf(0x18, 0x83.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(),
+            0xf8.toByte(), 0xff.toByte(), 0xff.toByte(), 0xff.toByte(), 0xff.toByte(), 0x01)
+        val unavailable = ByteArray(9) { 0xff.toByte() } + byteArrayOf(0x01)
+        protocol.receive(Wire.bytes(20, Wire.message(
+            Wire.bytes(1, Wire.message(Wire.number(1, 17), Wire.number(2, 1), signedOptions)),
+            Wire.bytes(2, Wire.message(Wire.number(1, 9), Wire.text(2, ""),
+                byteArrayOf(0x18) + unavailable, byteArrayOf(0x20) + unavailable))
+        )))
+        val target = protocol.textTarget()!!
+        assertEquals(Int.MIN_VALUE or 3, target.imeOptions)
+        assertEquals(0, target.start); assertEquals(0, target.end)
+        assertTrue(protocol.ready)
+        assertEquals(42, Wire.parse(protocol.receive(Wire.bytes(8, Wire.number(1, 42)))!!).nested(9).num(1))
+        assertNotNull(protocol.replaceText(target, "search", 6))
+    }
     private fun focus(id: Int = 17, text: String = "hello", start: Int = 5, end: Int = 5, inputType: Int = 1, options: Int = 3) = Wire.bytes(20, Wire.message(
         Wire.bytes(1, Wire.message(Wire.number(1, id), Wire.number(2, inputType), Wire.number(3, options))),
         Wire.bytes(2, Wire.message(Wire.number(1, 9), Wire.text(2, text), Wire.number(3, start), Wire.number(4, end)))

@@ -18,6 +18,8 @@ Remote TLS uses the advertised port (normally 6466); Polo pairing uses that port
 
 Frames use an unsigned varint length followed by a protobuf payload, capped at 1 MiB. Partial reads are completed, malformed lengths fail closed, and unknown supported wire types are skipped.
 
+Scalar varints also accept the ten-byte two's-complement encoding used by negative `int32` editor values, such as unavailable cursor offsets and keyboard option flags. These valid values must not interrupt the remote connection. Frame and embedded-message lengths remain bounded and non-negative. See [protobuf integer encoding](https://protobuf.dev/programming-guides/encoding/#signed-integers).
+
 ## Pairing and upgrade compatibility
 
 Polo uses version 2/status 200: request/acknowledgement (10/11), hexadecimal input options (20), configuration/acknowledgement (30/31), and secret/acknowledgement (40/41). The SHA-256 secret combines unsigned client modulus/exponent, server modulus/exponent and the final two code bytes. The first code byte is checked locally before sending.
