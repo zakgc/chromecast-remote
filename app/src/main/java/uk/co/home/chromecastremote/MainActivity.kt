@@ -461,7 +461,7 @@ class MainActivity : Activity() {
         body.add(button("Search again") { found.clear(); renderFound(); discovery.start() })
         foundList = column().also { body.add(it) }
         renderFound()
-        if (store.devices().size < 2) body.add(button("Add by IP address") { editDevice(null) })
+        body.add(button("Add by IP address") { editDevice(null) })
         body.add(label("Uses the unofficial Android TV remote protocol. A Google TV update may affect compatibility. Pairing keys stay protected on this phone. No analytics or sign-in.", 14f, muted))
     }
     private fun deviceFound(tv: FoundTv) {
@@ -482,7 +482,6 @@ class MainActivity : Activity() {
             val saved = store.devices().any { it.serviceName == tv.name || it.host == tv.host }
             list.add(button("${tv.name}\n${if (saved) "Already added" else tv.host}") {
                 if (saved) toast("This TV is already saved above.")
-                else if (store.devices().size >= 2) toast("Remove a saved TV before adding its replacement.")
                 else editDevice(null, tv)
             })
         }

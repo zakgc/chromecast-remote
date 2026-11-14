@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
@@ -66,6 +67,51 @@ class AppTest {
         switchTv(app, 0)
         assertEquals(living.id, store.selected)
         assertTrue(views(app.window.decorView).filterIsInstance<TextView>().any { it.text == "Living Room" })
+        assertFalse(buttons(app).first { it.contentDescription == "Up" }.isEnabled)
+    }
+    @Test fun manySavedTvsRetainPairingsSelectionAndEditsAfterReload() {
+        val devices = (1..12).map { TvDevice(name = "TV $it", host = "192.168.1.${it + 20}", fingerprint = "pin-$it") }
+        devices.forEach(store::save)
+        store.selected = devices.last().id
+        val updated = devices.last().copy(name = "Other house")
+        store.save(updated)
+        val reloaded = DeviceStore(RuntimeEnvironment.getApplication())
+        assertEquals(devices.dropLast(1) + updated, reloaded.devices())
+        assertEquals(updated.id, reloaded.selected)
+        reloaded.remove(updated.id)
+        assertEquals(devices.dropLast(1), reloaded.devices())
+        assertEquals(devices.first().id, reloaded.selected)
+    }
+    @Test fun manualAndDiscoveredTvsCanBeAddedBeyondTwoAndSelected() {
+        repeat(2) { store.save(TvDevice(name = "TV $it", host = "192.168.1.${it + 20}")) }
+        val app = launch()
+        openSettings(app)
+        click(app, "Manage TVs")
+        click(app, "Add by IP address")
+        val manual = ShadowAlertDialog.getLatestAlertDialog()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val fields = views(manual.window!!.decorView).filterIsInstance<EditText>()
+        fields[0].setText("Other house")
+        fields[1].setText("192.168.2.20")
+        manual.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick()
+        assertEquals(3, store.devices().size)
+        assertTrue(buttons(app).any { it.text == "Add by IP address" })
+
+        val discovered = FoundTv("Discovered TV", "192.168.2.21", 6466)
+        MainActivity::class.java.getDeclaredMethod("deviceFound", FoundTv::class.java).apply { isAccessible = true }.invoke(app, discovered)
+        click(app, "${discovered.name}\n${discovered.host}")
+        val dialog = ShadowAlertDialog.getLatestAlertDialog()
+        assertTrue(dialog.isShowing)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick()
+        assertEquals(4, store.devices().size)
+        assertEquals(discovered.name, store.devices().last().serviceName)
+
+        click(app, "Back to settings")
+        click(app, "Back to remote")
+        switchTv(app, 3)
+        assertEquals(store.devices().last().id, store.selected)
+        assertTrue(views(app.window.decorView).filterIsInstance<TextView>().any { it.text == discovered.name })
         assertFalse(buttons(app).first { it.contentDescription == "Up" }.isEnabled)
     }
     @Test fun playbackIsAvailableForBothTvsRegardlessOfOldVerificationFlags() {

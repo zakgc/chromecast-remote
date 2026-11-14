@@ -47,7 +47,7 @@ class DeviceStore(context: Context) {
     fun save(device: TvDevice) {
         val current = devices().toMutableList()
         val index = current.indexOfFirst { it.id == device.id }
-        if (index >= 0) current[index] = device else { require(current.size < 2); current.add(device) }
+        if (index >= 0) current[index] = device else current.add(device)
         write(current)
         if (selected.isEmpty()) selected = device.id
     }
